@@ -12,7 +12,7 @@ setup(
    author='Chai Wah Wu',
    author_email='cwwuieee@gmail.com',
    packages=find_packages(),
-   url='http://pypi.python.org/pypi/oeis-sequences/',
+   url='https://github.com/postvakje/oeis-sequences',
    license='LICENSE',
    description='Python functions to generate OEIS sequences',
    long_description=long_description,
