@@ -7,7 +7,7 @@ Python functions to generate [The On-Line Encyclopedia of Integer Sequences](htt
 Requires `python` >= 3.8
 
 ## Installation
-`pip install oeis-sequences`
+`pip install OEISsequences`
 
 ## Usage
 After installation, `import OEISsequences` will import all the functions accessible via `OEISsequences.Axxxxxx`.

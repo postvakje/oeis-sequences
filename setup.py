@@ -16,6 +16,7 @@ setup(
    license='LICENSE',
    description='Python functions to generate OEIS sequences',
    long_description=long_description,
+   long_description_content_type='text/markdown',
    install_requires=requirements,
    classifiers = ['Programming Language :: Python :: 3',
                 'License :: OSI Approved :: Apache Software License',
