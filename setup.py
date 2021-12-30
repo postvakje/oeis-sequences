@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -11,7 +11,7 @@ setup(
    version='0.0.1',
    author='Chai Wah Wu',
    author_email='cwwuieee@gmail.com',
-   packages=setuptools.find_packages(),
+   packages=find_packages(),
    url='http://pypi.python.org/pypi/oeis-sequences/',
    license='LICENSE',
    description='Python functions to generate OEIS sequences',
