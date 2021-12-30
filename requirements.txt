@@ -1,0 +1,4 @@
+sympy
+gmpy2
+num2words
+unidecode
