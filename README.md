@@ -32,7 +32,7 @@ Given `Axxxxxx_gen`, one can define a function `Axxxxxx` as:
 def Axxxxxx(n,offset=1): return next(islice(Axxxxxx_gen(),n-offset,None))
 ```
 
-where a(*offset*) is the first term returned by the generator, this value of *offset* is the same as the *offset* parameter in the OEIS database.
+where a(*offset*) is the first term returned by the generator. This value of *offset* is the same as the *offset* parameter in the OEIS database.
 
 Some functions `Axxxxxx_gen` contain an optional keyword `startvalue` that returns a generator of terms that are larger than or equal to `startvalue`.
 
