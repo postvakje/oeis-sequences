@@ -36,6 +36,8 @@ where a(*offset*) is the first term returned by the generator. This value of *of
 
 Some functions `Axxxxxx_gen` contain an optional keyword `startvalue` that returns a generator of terms that are larger than or equal to `startvalue`.
 
+For some sequences, e.g. `A269483`, both types of functions `Axxxxxx` and `Axxxxxx_gen` are provided.
+
 ## Examples
 
 Least power of 3 having exactly n consecutive 7's in its decimal representation.
