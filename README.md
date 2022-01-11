@@ -10,8 +10,8 @@ Requires `python` >= 3.8
 `pip install OEISsequences`
 
 ## Usage
-After installation, `import OEISsequences` will import all the functions accessible via `OEISsequences.Axxxxxx`.
-Alternatively, invidividual functions can be imported as `from OEISsequences import Axxxxxx`.
+After installation, `from oeis_sequences import OEISsequences` will import all the functions accessible via `OEISsequences.Axxxxxx`.
+Alternatively, invidividual functions can be imported as `from oeis_sequences.OEISsequences import Axxxxxx`.
 
 For each sequence, there are 3 different kinds of functions:
 
@@ -42,21 +42,21 @@ For some sequences, e.g. `A269483`, both types of functions `Axxxxxx` and `Axxxx
 
 Least power of 3 having exactly n consecutive 7's in its decimal representation.
 ``` 
-from OEISsequences import A131546
+from oeis_sequences.OEISsequences import A131546
 print(A131546(5))
 >> 721
 ```  
 Minimal exponents m such that the fractional part of (10/9)<sup>m</sup> obtains a maximum (when starting with m=1).   
 ```
 from itertools import islice
-from OEISsequences import A153695_gen
+from oeis_sequences.OEISsequences import A153695_gen
 print(list(islice(A153695_gen(),10)))
 >> [1, 2, 3, 4, 5, 6, 13, 17, 413, 555]
 ```
 
 Numbers n such that n<sup>3</sup> has one or more occurrences of exactly nine different digits.
 ```
-from OEISsequences import A235811_gen 
+from oeis_sequences.OEISsequences import A235811_gen 
 print(list(islice(A235811_gen(startvalue=1475),10)))
 >> [1475, 1484, 1531, 1706, 1721, 1733, 1818, 1844, 1895, 1903]
 ```

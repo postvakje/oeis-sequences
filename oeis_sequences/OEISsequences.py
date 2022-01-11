@@ -10,8 +10,8 @@ Requires python >= 3.8
 
 Installation: pip install OEISsequences
 
-After installation, `import OEISsequences` will import all the functions accessible via `OEISsequences.Axxxxxx`.
-Alternatively, invidividual functions can be imported as `from OEISsequences import Axxxxxx`.
+After installation, `from oeis_sequences import OEISsequences` will import all the functions accessible via `OEISsequences.Axxxxxx`.
+Alternatively, invidividual functions can be imported as `from oeis_sequences.OEISsequences import Axxxxxx`.
 
 For each sequence, there are 3 different kinds of functions:
 
@@ -38,16 +38,16 @@ For some sequences, e.g. `A269483`, both type of functions `Axxxxxx` and `Axxxxx
 
 Examples:
     
-   from OEISsequences import A131546
+   from oeis_sequences.OEISsequences import A131546
    print(A131546(5))
    >> 721
   
    from itertools import islice
-   from OEISsequences import A153695_gen
+   from oeis_sequences.OEISsequences import A153695_gen
    print(list(islice(A153695_gen(),10)))
    >> [1, 2, 3, 4, 5, 6, 13, 17, 413, 555]
    
-   from OEISsequences import A235811_gen 
+   from oeis_sequences.OEISsequences import A235811_gen 
    print(list(islice(A235811_gen(startvalue=1475),10)))
    >> [1475, 1484, 1531, 1706, 1721, 1733, 1818, 1844, 1895, 1903]
 
@@ -114,6 +114,12 @@ from sympy import (
     Poly,
     hermite,
     mod_inverse,
+    EulerGamma,
+    digamma,
+    discrete_log,
+    S,
+    catalan,
+    npartitions,
 )
 from sympy.functions import hyper, partition
 from sympy.ntheory import mobius, legendre_symbol
@@ -134,7 +140,7 @@ from sympy.utilities.iterables import (
     multiset_combinations,
     multiset_partitions,
 )
-from sympy.functions.combinatorial.numbers import stirling
+from sympy.functions.combinatorial.numbers import stirling, bell
 from sympy.ntheory.continued_fraction import (
     continued_fraction,
     continued_fraction_periodic,
@@ -142,7 +148,7 @@ from sympy.ntheory.continued_fraction import (
 )
 from sympy.ntheory.modular import crt
 from sympy.combinatorics.subsets import Subset
-from sympy.solvers.diophantine.diophantine import diop_quadratic
+from sympy.solvers.diophantine.diophantine import diop_quadratic, diop_DN
 from sympy.abc import x as symbolx, y as symboly
 from gmpy2 import (
     mpz,
@@ -259,7 +265,7 @@ def pal_odd_gen(l, b=10):
                 yield y * n + b * m + k
 
 
-def pal10_odd_range_gen(m):
+def pal10_odd_range_gen(m=1):
     """generator of odd-length palindromes in base 10 of length at least m"""
     if m == 1:
         yield 0
@@ -375,6 +381,14 @@ def divisor_prod(n):
     """product of divisors of n"""
     d = divisor_count(n)
     return isqrt(n) ** d if d % 2 else n ** (d // 2)
+
+
+def divisor_sigma_mod(n, m):
+    """computes divisor_sigma(n) mod m"""
+    y = 1
+    for p, e in factorint(n).items():
+        y = (y * (p ** (e + 1) - 1) // (p - 1)) % m
+    return y
 
 
 def reversedigits(n, b=10):
@@ -1279,6 +1293,10 @@ def A000110_gen():
         blist = list(accumulate([b] + blist))
         b = blist[-1]
         yield b
+
+
+def A000110(n):
+    return bell(n)
 
 
 @lru_cache(maxsize=None)
@@ -2523,7 +2541,7 @@ def A348623_gen():  # generator of terms
         yield n
 
 
-def A349775sumsetgen(n):  # generate sums of 2 subsets A,B with |A|,|B| >= 2 for A349775
+def A349775_helper(n):  # generate sums of 2 subsets A,B with |A|,|B| >= 2 for A349775
     for l in range(2, n + 2):
         for a in combinations(range(n + 1), l):
             amax = max(a)
@@ -2535,7 +2553,7 @@ def A349775sumsetgen(n):  # generate sums of 2 subsets A,B with |A|,|B| >= 2 for
 
 def A349775(n):
     c = Counter()
-    for s in set(A349775sumsetgen(n)):
+    for s in set(A349775_helper(n)):
         c[len(s)] += 1
     for i in range(n + 1, 1, -1):
         if c[i] < comb(n + 1, i):
@@ -3687,7 +3705,7 @@ def A046732_gen():
 
 
 def A050985(n):
-    return 1 if n <= 1 else reduce(mul, [p ** (e % 3) for p, e in factorint(n).items()])
+    return 1 if n <= 1 else prod(p ** (e % 3) for p, e in factorint(n).items())
 
 
 def A061242_gen():
@@ -9207,7 +9225,7 @@ def A071268(n):
         sum(int(d) for d in s)
         * factorial(len(s) - 1)
         * (10 ** len(s) - 1)
-        // (9 * reduce(mul, (factorial(d) for d in (s.count(w) for w in set(s)))))
+        // (9 * prod(factorial(d) for d in (s.count(w) for w in set(s))))
     )
 
 
@@ -12439,9 +12457,7 @@ def A333196(n):
     return (
         1
         if len(fs) == 0
-        else reduce(
-            mul, (p ** (fs[p] // n + 1 if fs[p] % n else fs[p] // n) for p in fs)
-        )
+        else prod(p ** (fs[p] // n + 1 if fs[p] % n else fs[p] // n) for p in fs)
     )
 
 
@@ -12685,6 +12701,37 @@ def A343675_gen():  # generator of terms
             for i in range(1, l + 1):
                 y = A343675_helperf(y) if i % 2 else A343675_helperg(y)
             yield from (int(p + p[-2::-1]) for p in y if isprime(int(p + p[-2::-1])))
+
+
+def A343676(n):
+    c = 0
+    for d in "123456789":
+        x = d
+        for i in range(1, n):
+            x = A343675_helperg(x) if i % 2 else A343675_helperf(x)
+        c += sum(1 for p in x if isprime(int(p)))
+        if n > 1:
+            y = d
+            for i in range(1, n):
+                y = A343675_helperf(y) if i % 2 else A343675_helperg(y)
+            c += sum(1 for p in y if isprime(int(p)))
+    return c
+
+
+def A343677(n):
+    if n == 0:
+        return 4
+    c = 0
+    for d in "1379":
+        x = d
+        for i in range(1, n + 1):
+            x = A343675_helperg(x) if i % 2 else A343675_helperf(x)
+        c += sum(1 for p in x if isprime(int(p + p[-2::-1])))
+        y = d
+        for i in range(1, n + 1):
+            y = A343675_helperf(y) if i % 2 else A343675_helperg(y)
+        c += sum(1 for p in y if isprime(int(p + p[-2::-1])))
+    return c
 
 
 def A343999(n):
@@ -16899,7 +16946,7 @@ def A117790_gen():  # generator of terms
 def A118548_gen():
     return (
         n
-        for n in (x ** 2 for x in range(1, 10 ** 6))
+        for n in (x ** 2 for x in count(1))
         if not (str(n).count("0") or n % prod(int(d) for d in str(n)))
     )
 
@@ -16917,3 +16964,3317 @@ def A118575_gen(startvalue=1):
             or n % prod(int(d) for d in str(n))
         )
     )
+
+
+def A350578_gen():  # generator of terms
+    yield 0
+    b, bcounter = 0, Counter({0})
+    for n in count(1):
+        b += -n if b - n >= 0 and bcounter[b - n] <= bcounter[b + n] else n
+        bcounter[b] += 1
+        yield b
+
+
+def A350579(n):
+    b, bcounter = 0, Counter({0})
+    for m in count(1):
+        if bcounter[b] == n:
+            return b
+        b += -m if b - m >= 0 and bcounter[b - m] <= bcounter[b + m] else m
+        bcounter[b] += 1
+
+
+def A122004_gen():  # generator of terms
+    p = 2
+    while True:
+        if (
+            0
+            == sum(pow(prime(i), prime(j), p) for i in range(1, p) for j in range(1, p))
+            % p
+        ):
+            yield p
+        p = nextprime(p)
+
+
+def A123373(n):
+    return sum(prime(i) ** prime(j) for i in range(1, n + 1) for j in range(1, n + 1))
+
+
+def A086787(n):
+    return (
+        1
+        - digamma(n)
+        - EulerGamma
+        + sum(Fraction(i ** (n + 1), i - 1) for i in range(2, n + 1))
+    )
+
+
+def A128287_gen():  # generator of terms
+    yield 1
+    x, s = 1, 2
+    for i in count(2):
+        x = x * (4 * i - 2) // (i + 1)
+        s += x
+        if not (isprime(i) or s % i):
+            yield i
+
+
+def A130870_gen():  # generator of terms
+    for i in pal10_odd_range_gen():
+        if (
+            i > 2
+            and isprime(i)
+            and max(factorint(i - 1).values()) > 1
+            and max(factorint(i + 1).values()) > 1
+        ):
+            yield i
+
+
+def A132365(n):
+    a, b, m, s = 2, 1, 0, str(n)
+    while True:
+        if s in str(a):
+            return m
+        m += 1
+        a, b = b, a + b
+
+
+def A134009_gen():  # generator of terms
+    yield 1
+    b = 1
+    while True:
+        i, j = isqrt_rem(3 * b ** 2)
+        b = i + int(4 * (j - i) >= 1)
+        yield int(b)
+
+
+def A135923_gen():  # generator of terms
+    m = [1680, -840, -1380, -240, 641, 393, -209, -10, 0]
+    yield m[-1]
+    while True:
+        for i in range(8):
+            m[i + 1] += m[i]
+        yield m[-1]
+
+
+def A137079_gen():
+    return (
+        int("".join(a) + b)
+        for l in count(0)
+        for a in product("2356", repeat=l)
+        for b in ("5", "6")
+        if set(str(int("".join(a) + b) ** 2)) <= {"2", "3", "5", "6"}
+    )
+
+
+def A137093_gen():
+    return (
+        int("".join(a))
+        for l in range(1, 10)
+        for a in product("2456", repeat=l)
+        if set(str(int("".join(a)) ** 2)) <= {"2", "4", "5", "6"}
+    )
+
+
+def A138584_gen():  # generator of terms
+    for l in count(0):
+        for d in product("35", repeat=l):
+            s = "".join(d)
+            n = int(s + "3" + s[::-1])
+            if isprime(n):
+                yield n
+            n += 2 * 10 ** l
+            if isprime(n):
+                yield n
+
+
+@lru_cache(maxsize=None)
+def A140466(n):
+    if n == 0:
+        return 0
+    c, j = 0, 2
+    k1 = n // j
+    while k1 > 1:
+        j2 = n // k1 + 1
+        c += (j2 - j) * (A140466(k1) // 2 - 1)
+        j, k1 = j2, n // j2
+    return 2 * (n * (n - 1) - c + j)
+
+
+def A145203_gen():
+    return (
+        primepi(3 * n * (n + 1) + 1) for n in count(0) if isprime(3 * n * (n + 1) + 1)
+    )
+
+
+def A145285(n):
+    return (5, 8, 12, 16, 20, 25, 28, 32)[n - 1] if n <= 8 else 4 * n + 1
+
+
+def A147773(n):
+    i, j = iroot_rem(n ** n, 3)
+    return int(i + int(8 * j >= 6 * i * (2 * i + 1) + 1))
+
+
+def A158215(n):
+    if n == 1:
+        return 11
+    if n == 2:
+        return 0
+    p2 = prime(n) // 2
+    l = p2
+    while True:
+        for i in combinations(range(l), l - p2):
+            s = ["1"] * l
+            for x in i:
+                s[x] = "0"
+            s = "".join(s)
+            q = int(s + "1" + s[::-1])
+            if isprime(q):
+                return q
+        l += 1
+
+
+def A153568(n):
+    a, b, = (
+        0,
+        1,
+    )
+    for _ in range(n):
+        a, b = b, a + b
+    return (lambda m: 2 * sum(a // k for k in range(1, m + 1)) - m * m)(isqrt(a))
+
+
+def A158962(n):
+    m = 1
+    while True:
+        for i in range(n):
+            if not isprime(int(str(m) * (i + 1)) - 1):
+                break
+        else:
+            return m
+        m += 1
+
+
+def A160828_gen():  # generator of terms
+    m = [96, 0, 80, 80, 98]
+    while True:
+        yield m[-1]
+        for i in range(4):
+            m[i + 1] += m[i]
+
+
+def A160943(n):
+    return n + sum(int(d) for d in str(n - 1)) + sum(int(d) for d in str(n + 1))
+
+
+def A161354_gen():
+    return (m for m in (n ** 3 for n in count(1)) if isprime(int(str(m)[::-1])))
+
+
+@lru_cache(maxsize=None)
+def A162459(n):
+    if n == 0:
+        return 0
+    c, j = n, 2
+    k1 = n // j
+    while k1 > 1:
+        j2 = n // k1 + 1
+        c += (j2 - j) * A162459(k1) // 2 ** (k1 - 1)
+        j, k1 = j2, n // j2
+    return 2 ** (n - 1) * (j - c)
+
+
+def A167218_gen():  # generator of terms
+    for l in count(1):
+        plist = []
+        l1, l2 = 10 ** (l - 1), 10 ** l
+        m = isqrt(l1)
+        if m ** 2 + 1 < l1:
+            m += 1
+        while (k := m ** 2 + 1) < l2:
+            if k % 10:
+                p = int(str(k)[::-1])
+                if isprime(p):
+                    plist.append(p)
+            m += 1
+        yield from sorted(plist)
+
+
+def A167807_gen():  # generator of terms
+    for i in count(3):
+        n = i * (i + 1) * (2 * i + 1) // 6
+        p2 = prevprime(n // 3)
+        p1, p3 = prevprime(p2), nextprime(p2)
+        q = p1 + p2 + p3
+        while q <= n:
+            if q == n:
+                yield n
+            p1, p2, p3 = p2, p3, nextprime(p3)
+            q = p1 + p2 + p3
+
+
+def A171642_gen(startvalue=1):  # generator of terms
+    for n in count(max(startvalue, 1)):
+        d = divisors(n)
+        s = sum(d)
+        if s % 2 and 2 * n <= s and s == 3 * sum(x for x in d if x % 2):
+            yield n
+
+
+def A173102(n):
+    return (9 * n ** 2 - (n % 2)) // 4
+
+
+def A173208_gen():  # generator of terms
+    yield 2
+    a, b = 2, 3
+    while True:
+        if (
+            max(factorint(b).values()) <= 1
+            and max(factorint(b - 1).values()) <= 1
+            and max(factorint(b + 1).values()) <= 1
+        ):
+            yield b
+        a, b = b, a + b
+
+
+@lru_cache(maxsize=None)
+def A175549(n):
+    if n == 0:
+        return 0
+    c, j = 0, 2
+    k1 = n // j
+    while k1 > 1:
+        j2 = n // k1 + 1
+        c += (j2 - j) * A175549(k1)
+        j, k1 = j2, n // j2
+    return 4 * n * (n - 1) * (2 * n + 5) - c + 26 * (j - 1)
+
+
+def A175583_gen(startvalue=1):  # generator of terms
+    for n in count(max(startvalue, 1)):
+        d = divisors(n)
+        s = sum(d)
+        if not s % 2 and max(d) <= s // 2 and isprime(s // 2 - n):
+            for x in range(1, 2 ** len(d)):
+                if sum(Subset.unrank_binary(x, d).subset) == s // 2:
+                    yield n
+                    break
+
+
+def A182578(n):
+    m, tlist, s = n ** n, [1, 2], 0
+    while tlist[-1] + tlist[-2] <= m:
+        tlist.append(tlist[-1] + tlist[-2])
+    for d in tlist[::-1]:
+        if d <= m:
+            s += 1
+            m -= d
+    return s
+
+
+def A185173(n):
+    c = n * (n + 1) // 2
+    for i in range(2, n + 1):
+        for j in range(i + 1, n + 1):
+            pset = set(range(2, n + 1)) - {i, j}
+            for p in permutations(pset):
+                q, rset, rl = [j, 1, i] + list(p), set(), 0
+                for k in range(n):
+                    r = 0
+                    for l in range(n):
+                        r += q[(k + l) % n]
+                        if r not in rset:
+                            rset.add(r)
+                            rl += 1
+                        if rl >= c:
+                            break
+                    else:
+                        continue
+                    break
+                else:
+                    c = rl
+    return c
+
+
+def A185267(n):
+    p = prime(n)
+    s = str(p)
+    if s == s[::-1]:
+        return p
+    for i in range(1, len(s)):
+        if s[i:] == s[-1 : i - 1 : -1]:
+            return int(s + s[i - 1 :: -1])
+
+
+def A185695(n):
+    p, k, m = 2, 61 ** n, 10
+    q, m2 = p % k, m % k
+    while True:
+        p = nextprime(p)
+        while p >= m:
+            m *= 10
+            m2 = m % k
+        q = (q * m2 + p) % k
+        if q == 0:
+            return p
+
+
+def A185698(n):
+    p, k, m = 2, 67 ** n, 10
+    q, m2 = p % k, m % k
+    while True:
+        p = nextprime(p)
+        while p >= m:
+            m *= 10
+            m2 = m % k
+        q = (q * m2 + p) % k
+        if q == 0:
+            return p
+
+
+def A187975_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if isqrt(2 * (n + 5) ** 2) - isqrt(2 * n ** 2) == 8
+    )
+
+
+def A188089_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if isqrt(3 * (n + 4) ** 2) - isqrt(3 * n ** 2) == 6
+    )
+
+
+def A188290_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if isqrt(5 * (n + 4) ** 2) - isqrt(5 * n ** 2) == 8
+    )
+
+
+def A192272_gen(startvalue=3):  # generator of terms
+    for n in count(max(startvalue, 3)):
+        if (n * antidivisor_count(n)) % sum(antidivisors(n, generator=True)) == 0:
+            yield n
+
+
+def A192276_gen(startvalue=3):
+    return (
+        n
+        for n in count(max(startvalue, 3))
+        if not n % sum(1 for d in range(2, n) if n % d and 2 * n % d in (d - 1, 0, 1))
+    )
+
+
+def A192892(n):
+    return (
+        1
+        if n == 0
+        else sum(
+            1
+            for m in product([0, 1], repeat=n ** 2)
+            if (lambda x: x.det() == x.per())(Matrix(n, n, m))
+        )
+    )
+
+
+def A194112(n):
+    return sum(isqrt(8 * j ** 2) for j in range(1, n + 1))
+
+
+def A194116(n):
+    return sum(isqrt(13 * j ** 2) for j in range(1, n + 1))
+
+
+def A194137(n):
+    return sum(isqrt(6 * j ** 2) for j in range(1, n + 1))
+
+
+def A194140(n):
+    return n * (n + 1) // 2 + sum(isqrt(3 * j ** 2) for j in range(1, n + 1))
+
+
+def A195349_gen():  # generator of terms
+    s, p = 0, 1
+    for k in count(1):
+        d = divisor_count(k)
+        s += d
+        p *= d
+        if p % s == 0:
+            yield k
+
+
+def A197194_gen():  # generator of terms
+    m, k = [1] * 10, 1
+    while True:
+        yield k * m[-1]
+        k *= 9
+        for i in range(9):
+            m[i + 1] += m[i]
+
+
+def A198193(n):
+    return sum((n - i) * int(j) for i, j in enumerate(bin(n)[2:]))
+
+
+def A201009_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if primefactors(n)
+        == primefactors(
+            sum(int(n * e / p) for p, e in factorint(n).items()) if n > 1 else 0
+        )
+    )
+
+
+def A205770(n):
+    m = 100 ** n
+    i = integer_nthroot(m, 5)[0]
+    return i + int(32 * m >= (1 + 2 * i) ** 5)
+
+
+def A038103_gen():
+    return (
+        int(s)
+        for s in (gmpy2digits(n, 3) for n in count(0))
+        if s in gmpy2digits(int(s), 3)
+    )
+
+
+def A350573_gen():
+    return (n for n in count(0) if (s := gmpy2digits(n, 3)) in gmpy2digits(int(s), 3))
+
+
+def A214332_gen():  # generator of terms
+    yield 0
+    blist, c = [0], 1
+    while True:
+        blist = list(
+            chain.from_iterable(
+                ([0, 1] if d == 0 else [2, 0, 2] if d == 1 else [] for d in blist)
+            )
+        )
+        yield from blist[c:]
+        c = len(blist)
+
+
+def A216395(n):
+    if n == 1:
+        return 1
+    c = 0
+    for i in range(2 ** (n - 1) + 1, 2 ** n):
+        s1, s2 = sorted(str(i)), sorted(str(divisor_sigma(i)))
+        if len(s1) == len(s2) and s1 == s2:
+            c += 1
+    return c
+
+
+def A216396(n):
+    c = 0
+    for i in range(2 ** (n - 1) + 1, 2 ** n):
+        s1, s2 = sorted(str(i)), sorted(str(divisor_sigma(i) - i))
+        if len(s1) == len(s2) and s1 == s2:
+            c += 1
+    return c
+
+
+def A216873_gen():  # generator of terms
+    n = 1
+    for i in count(0):
+        s = str(n)
+        if sum(isprime(s.count(d)) for d in "0123456789") >= 9:
+            yield i
+        n *= 2
+
+
+def A217186(n):
+    l, x = [str(d) * n for d in range(10)], 1
+    for m in count(0):
+        s = str(x)
+        for k in l:
+            if k in s:
+                return len(s)
+        x *= 3
+
+
+def A217191(n):
+    if n == 1:
+        return 1
+    else:
+        l, y, x = [str(d) * n for d in range(10)], 0, 1
+        for m in count(1):
+            s = str(x)
+            for k in l:
+                if k in s:
+                    return len(s)
+            y, x = x, y + x
+
+
+def A217192(n):
+    if n == 1:
+        return 1
+    else:
+        l, y, x = [str(d) * n for d in range(10)], 2, 1
+        for m in count(1):
+            s = str(x)
+            for k in l:
+                if k in s:
+                    return len(s)
+            y, x = x, y + x
+
+
+def A349576_gen():  # generator of terms
+    blist = [1, 5]
+    yield from blist
+    while True:
+        blist = [blist[1], sum(blist) // gcd(*blist) + 1]
+        yield blist[-1]
+
+
+def A225864_gen():  # generator of terms
+    for l in count(1):
+        plist, q = [p for p in [2, 3, 5, 7] if isprime(l - 1 + p)], (10 ** l - 1) // 9
+        for i in range(l):
+            for p in plist:
+                r = q + (p - 1) * 10 ** i
+                if not isprime(r):
+                    yield r
+
+
+def A226019_gen():  # generator of terms
+    yield 2
+    for l in count(1):
+        plist = []
+        l1, l2 = 10 ** (l - 1), 10 ** l
+        m = isqrt(l1)
+        if m ** 2 < l1:
+            m += 1
+        while (k := m ** 2) < l2:
+            if k % 2:
+                p = int(bin(k)[-1:1:-1], 2)
+                if isprime(p):
+                    plist.append(p)
+            m += 1
+        yield from sorted(plist)
+
+
+def A228000(n):
+    return min(factorint(144396166620968 * n + 1))
+
+
+def A228295(n):
+    return 0 if n == 0 else 1 + integer_nthroot(12 * n ** 4, 4)[0]
+
+
+def A235164_helper(n, b):
+    if n == 1:
+        t = list(range(1, b))
+        for i in range(1, b):
+            u = list(t)
+            u.remove(i)
+            yield i, u
+    else:
+        for d, v in A235164_helper(n - 1, b):
+            for g in v:
+                k = d * b + g
+                if not k % n:
+                    u = list(v)
+                    u.remove(g)
+                    yield k, u
+
+
+def A235164_gen():
+    return (a for n in count(2, 2) for a, b in A235164_helper(n - 1, n))
+
+
+def A239437(n):  # requires 3 <= n <= 62
+    m = n
+    while True:
+        s = "".join(gmpy2digits(i, m) for i in range(m))
+        for d in permutations(s, m):
+            if d[0] != "0":
+                c = mpz("".join(d), m)
+                for b in range(3, n):
+                    if len(set(gmpy2digits(c, b))) == b:
+                        break
+                else:
+                    return int(c)
+        m += 1
+
+
+def A239638_gen():  # generator of terms
+    p = 5
+    while True:
+        if (p % 6) == 5:
+            n = (p - 1) // 2
+            if pow(2, n, p) == 1 and isprime((2 ** n - 1) // p):
+                yield n
+        p = nextprime(p)
+
+
+def A239942(n):
+    return factorial(prime(n)) - factorial(prime(n - 1))
+
+
+def A240975(n):
+    return len(primefactors(n ** 3 - 1))
+
+
+def A242028_gen():
+    return filter(lambda n: lcm(*antidivisors(n)) < n, count(3))
+
+
+def A242092_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if primefactors(n) == primefactors(int(str(prime(n))[::-1]))
+    )
+
+
+def A242347_gen():
+    yield 1
+    l = 2
+    while True:
+        l = int(bin(l)[2:])
+        yield len(str(l))
+
+
+def A242930_gen():
+    return filter(
+        isprime, (a for a, b in (divmod(k ** 2 + 7, 11) for k in count(1)) if b == 0)
+    )
+
+
+def A243097_gen():  # generator of terms
+    for n in count(1):
+        if n % 10:
+            s1 = str(n)
+            s2 = s1[::-1]
+            if s1 != s2 and not n % int(s2):
+                yield sum(int(d) for d in s1)
+
+
+def A243112_gen():  # generator of terms
+    yield 0
+    a = 0
+    for n in count(1):
+        s = bin(n)[2:]
+        b = sum(s[i:].count("0") for i, d in enumerate(s, start=1) if d == "1")
+        if b > a:
+            yield n
+            a = b
+
+
+def A243298_gen():  # generator of terms
+    m = [362880, -1491840, 2464560, -2082240, 945000, -220248, 22560, -680, 1, -1]
+    for n in count(1):
+        for i in range(9):
+            m[i + 1] += m[i]
+        if isprime(m[-1]):
+            yield n
+
+
+def A244444_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if len(set(str(n + sum(divisors(n))))) == 1
+        and str(n + sum(divisors(n)))[0] == "1"
+    )
+
+
+def A245048_gen():
+    return filter(lambda p: isprime(p ** 2 + 28), (prime(n) for n in count(1)))
+
+
+def A245061_gen():
+    return (p for n, p in enumerate(prime(n) for n in count(1)) if is_square(p - n - 1))
+
+
+def A245199_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if is_square(int(divisor_count(n))) and is_square(int(totient(n)))
+    )
+
+
+def A245202_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if is_square(int(divisor_count(n) + totient(n)))
+    )
+
+
+def A245270(n):
+    return int("".join(bin(y)[2:] for x in sorted(factorint(n).items()) for y in x), 2)
+
+
+def A246666_gen(startvalue=1):
+    return (
+        n for n in count(max(startvalue, 1)) if isprime(3 * n * (n * (n + 4) + 10) + 28)
+    )
+
+
+def A246757(n):
+    for i in range(10 ** n - 1, int("1" * n) - 1, -1):
+        pd = prod(int(d) for d in str(i))
+        if pd and not i % pd:
+            return i
+
+
+def A246763_gen():
+    yield 1
+    c = 1
+    for n in count(2):
+        c = c * (4 * n - 2) // (n + 1)
+        yield c ** 2 % prime(n)
+
+
+def A247000(n):
+    maxcount = 0
+    for i in range(2 ** (n - 1), 2 ** n):
+        s = format(i, "0" + str(n) + "b")
+        s, plist = s + s[:-1], []
+        for j in range(n):
+            for k in range(n):
+                t = s[j : j + k + 1]
+                if t == t[::-1] and not t in plist:
+                    plist.append(t)
+        if len(plist) > maxcount:
+            maxcount = len(plist)
+    return maxcount
+
+
+def A247048_gen(startvalue=1):  # generator of terms
+    for n in count(max(startvalue, 1)):
+        if not (isprime(n) or isprime(n + 2)):
+            m = sum(p * e for p, e in factorint(n).items())
+            if isprime(m):
+                m2 = sum(p * e for p, e in factorint(n + 2).items())
+                if ((m2 == m + 2) or (m == m2 + 2)) and isprime(m2):
+                    yield n
+
+
+def A247108_gen():  # generator of terms
+    yield 1
+    blist = [1]
+    while True:
+        blist = list(accumulate([-blist[-1]] + blist))
+        yield from blist
+
+
+def A247213_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if n <= 1 or not prod((p + 2) ** e for p, e in factorint(n).items()) % n
+    )
+
+
+def A247592_gen():  # generator of terms
+    blist, m, c = [2], 2, 2
+    for n in count(1):
+        m += 2 * n + 1
+        if is_prime(m):
+            if is_square(m % blist[-1]):
+                yield c
+            blist.append(m)
+            c += 1
+
+
+def A247650_gen():  # generator of terms
+    yield 1
+    blist, g, f = (
+        [1],
+        1,
+        (
+            (1 / symbolx ** 2 + 1 / symbolx + 1 + symbolx + symbolx ** 2)
+            * (1 / symboly ** 2 + 1 / symboly + 1 + symboly + symboly ** 2)
+        ).expand(modulus=2),
+    )
+    for n in count(1):
+        s = [int(d, 2) for d in bin(n)[2:].split("00") if d != ""]
+        g = (g * f).expand(modulus=2)
+        if len(s) == 1:
+            blist.append(g.subs([(symbolx, 1), (symboly, 1)]))
+        else:
+            blist.append(prod(blist[d] for d in s))
+        yield blist[-1]
+
+
+def A248587_gen():  # generator of terms
+    for i in count(3):
+        n = i ** 3
+        p3 = prevprime(n // 4)
+        p2, p4 = prevprime(p3), nextprime(p3)
+        p1 = prevprime(p2)
+        q = p1 + p2 + p3 + p4
+        while q <= n:
+            if q == n:
+                yield p1
+            p1, p2, p3, p4 = p2, p3, p4, nextprime(p4)
+            q = p1 + p2 + p3 + p4
+
+
+def A248705_gen():  # generator of terms
+    x, m = 0, [6, -6, 1, 0]
+    while True:
+        for i in range(3):
+            m[i + 1] += m[i]
+        xn = prod(int(d) for d in str(m[-1]))
+        if xn > x:
+            x = xn
+            yield m[-1]
+
+
+def A249586_gen():  # generator of terms
+    yield 0
+    m = [
+        119750400,
+        -658627200,
+        1546776000,
+        -2020606560,
+        1602266400,
+        -789354720,
+        237304980,
+        -40965390,
+        3576156,
+        -120849,
+        784,
+        0,
+        0,
+    ]
+    while True:
+        for i in range(12):
+            m[i + 1] += m[i]
+        yield m[-1]
+
+
+def A350037(n):
+    return pow(n, 2, (m := isqrt(n)) + int(4 * n >= (2 * m + 1) ** 2))
+
+
+def A350046_gen():  # generator of terms
+    f = Counter()
+    for m in count(2):
+        f += Counter(factorint(m))
+        e = sorted(f.items())
+        if all(
+            d <= 1 or isprime(d)
+            for d in (abs(e[i + 1][1] - e[i][1]) for i in range(len(e) - 1))
+        ):
+            yield m
+
+
+def A249610_gen():  # generator of terms
+    m = [48, -56, 13, 1]
+    while True:
+        for i in range(3):
+            m[i + 1] += m[i]
+        if isprime(m[-1]):
+            yield m[-1]
+
+
+def A249627(n):
+    return min(fs := factorint((10 ** n - 1) // 9)) * max(fs)
+
+
+def A249875_gen():  # generator of terms
+    x = 1
+    while True:
+        yield 2 * sum(divmod(isqrt(2 * x), 2)) ** 2 + x
+        x *= 4
+
+
+def A251853_gen():
+    (
+        int("".join(d))
+        for d in product("02468", repeat=4)
+        if not sum(int(y) for y in str(sum(int(x) for x in d))) % 2
+    )
+
+
+def A253295_gen():  # generator of terms
+    yield 8
+    b = 8
+    while True:
+        b = int("".join((str(e) + str(p) for p, e in sorted(factorint(b).items()))))
+        yield b
+
+
+def A253549(n):
+    p = prime(n)
+    for b in range(2, 17):
+        x, y, z = p, 0, 1
+        while x >= b:
+            x, r = divmod(x, b)
+            y += r * z
+            z *= 16
+        y += x * z
+        if isprime(y):
+            return y
+
+
+def A253575_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if set(str(n)) & set(str(n ** 6)) == set() and isprime(n)
+    )
+
+
+def A253578_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if set(str(n)) & set(str(n ** 10)) == set() and isprime(n)
+    )
+
+
+def A253671_gen():  # generator of terms
+    yield 1
+    blist, l1, l2 = [1], [1], 1, 1
+    for n in count(0):
+        blist = (
+            list(reversed(list(accumulate(reversed(blist))))) + [0]
+            if n % 2
+            else [0] + list(accumulate(blist))
+        )
+        l2, l1 = l1, sum(blist)
+        yield l1 // l2
+
+
+def A253769(n):
+    return (lambda m, p: 2 * sum(p // k for k in range(1, m + 1)) - m * m)(
+        isqrt(prime(n)), prime(n)
+    )
+
+
+def A253912_gen():
+    return (n for n in (i ** 4 for i in range(10 ** 6)) if isprime(int(str(n)[::-1])))
+
+
+def A254058(n):
+    b, a1, a2, t = 1, 0, n, 2 ** n
+    while b < t:
+        a2 += 1
+        a1 += 1
+        b = (b * a2) // a1
+    return a2
+
+
+def A254625_gen():  # generator of terms
+    c0, c1, c2 = 1, 8, 27
+    for n in count(1):
+        if max(c0, c1, c2) < n:
+            yield n
+        c0, c1, c2 = c1, c2, A007913(n + 3) ** 3
+
+
+def A254648_gen(startvalue=10):  # generator of terms
+    for n in count(max(startvalue, 10)):
+        m = str(n ** 2)
+        for a in combinations(range(1, len(m)), 2):
+            x, y, z = int(m[: a[0]]), int(m[a[0] : a[1]]), int(m[a[1] :])
+            if y != 0 and z != 0 and x + y + z == n:
+                yield n
+                break
+
+
+def A254746_gen():  # generator of terms
+    yield 1
+    c, s, s2 = {}, 2, 4
+    for n in count(2):
+        for p, e in factorint(4 * n - 2).items():
+            if p in c:
+                c[p] += e
+            else:
+                c[p] = e
+        for p, e in factorint(n + 1).items():
+            if c[p] == e:
+                del c[p]
+            else:
+                c[p] -= e
+        if n == s2:
+            d, ps = 1, prime(s)
+            for p, e in c.items():
+                d = (d * pow(p, e, ps)) % ps
+            yield d
+            s2 += 2 * s + 1
+            s += 1
+
+
+def A254999_gen():
+    return (
+        n
+        for n, m in (
+            (4 * k + 2, divisor_sigma_mod(4 * k + 2, 4 * k + 2)) for k in count(0)
+        )
+        if m and not n % m
+    )
+
+
+def A255400(n):
+    f, i, s = 1, 0, re.compile("[0-9]*[1-9]0{" + str(n) + "}[1-9][0-9]*")
+    while s.match(str(f) + "1") is None:
+        i += 1
+        f *= i
+    return i
+
+
+def A255911_gen():  # generator of terms
+    blist, c, m = [], 0, 0
+    for i in count(1):
+        d = divisor_count(i)
+        if d > m:
+            m = d
+            blist.append(i)
+            for j in range(c - 1, -1, -1):
+                q, r = divmod(i, blist[j])
+                if not r:
+                    yield q
+                    break
+            c += 1
+
+
+def A256370_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if is_prime(5 * n * (n * (n * (n + 8) + 36) + 80) + 354)
+    )
+
+
+def A256969_gen():  # generator of terms
+    c, bn, bd = 0, 1, 1
+    for k in count(1):
+        p = prime(k)
+        bn *= p
+        bd *= p - 1
+        while bn > c * bd:
+            yield k
+            c += 1
+
+
+def A256985(n):
+    ilist, k = [1] * (n + 1), 1
+    jlist = [d % 10 for d in accumulate(ilist)]
+    jlist = [jlist[-1]] + jlist[:-1]
+    while ilist != jlist:
+        k += 1
+        jlist = [d % 10 for d in accumulate(jlist)]
+        jlist = [jlist[-1]] + jlist[:-1]
+    return k
+
+
+def A257002_gen():
+    return (p for p in (prime(n) for n in count(1)) if pow(p, p, p + 2) == p)
+
+
+def A258231_gen(startvalue=0):
+    return (
+        n
+        for n in count(max(startvalue, 0))
+        if n % 10 and set(str(n)) == set(str(n ** 2))
+    )
+
+
+def A258456_gen(startvalue=1):
+    return (
+        i
+        for i in count(max(startvalue, 1))
+        if not integer_nthroot(i, 4)[1] and divisor_count(i) % 4
+    )
+
+
+def A258786_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if sorted(str(n)) == sorted(str(sum(antidivisors(n))))
+    )
+
+
+def A260031(n):
+    return int(gmpy2digits(n ** n, 12).rstrip("0")[-1], 12)
+
+
+def A260375_gen():  # generator of terms
+    yield 0
+    g = 1
+    for i in count(1):
+        g *= i
+        s = isqrt(g)
+        t = g - s ** 2
+        if is_square(t if t - s <= 0 else 2 * s + 1 - t):
+            yield i
+
+
+def A260534_T(n, k):
+    return sum(0 if ~(k - j) & j else n ** j for j in range(k + 1))
+
+
+def A260597_gen():  # generator of terms
+    bset = set()
+    for n in count(1):
+        m = primefactors(
+            int(
+                "".join(
+                    [str(d) for d in range(1, n + 1)]
+                    + [str(d) for d in range(n - 1, 0, -1)]
+                )
+            )
+        )
+        for p in m:
+            if not p in bset:
+                bset.add(p)
+                yield p
+
+
+def A260796_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if isprime(sum(int(d) for d in str(prime(n)) + str(prime(n + 1))))
+    )
+
+
+def A261175_gen():  # generator of terms
+    n = 1
+    for i in count(0):
+        n *= i ** i
+        yield len(str(n))
+
+
+def A261534_gen():  # generator of terms
+    for m in pal_gen(3):
+        n = int(gmpy2digits(m, 3))
+        if n > 0 and not isprime(n) and (s := str(divisor_prod(n))) == s[::-1]:
+            yield n
+
+
+def A261593_gen():  # generator of terms
+    for l in count(10):
+        for c in multiset_permutations("0" * (l - 10) + "1" * 10, l):
+            n = 2 * int("1" + "".join(c), 2)
+            if sum(int(d) for d in format(n * (n + 2), "b")) == 11:
+                yield n + 1
+
+
+def A261694_gen():  # generator of terms
+    a, b, = (
+        0,
+        1,
+    )
+    while True:
+        yield a
+        a, b = b, (a + b) % 21
+
+
+def A261749_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if sorted(str(n ** 2)) == sorted(str((n + 2) ** 2))
+    )
+
+
+def A262776(n):
+    if n < 2:
+        return 0
+    a, b, m = 0, 1, factorial(fibonacci(n))
+    for i in range(factorial(n) - 1):
+        b, a = (b + a) % m, b
+    return b
+
+
+def A350577_gen():  # generator of terms
+    p = 2
+    while True:
+        s = bin(p)[2:]
+        c, l = 0, len(s)
+        for i in range(l):
+            c += int(s[l - i - 1])
+            if 2 * c <= i:
+                break
+        else:
+            yield p
+        p = nextprime(p)
+
+
+def A262814_gen(startvalue=1):  # generator of terms
+    for k in count(max(startvalue, 1)):
+        n = k ** k
+        if not n % k:
+            s = str(n)
+            for i in range(len(s) - 1):
+                s = s[1:] + s[0]
+                if int(s) % k:
+                    break
+            else:
+                yield k
+
+
+def A263400(n):
+    b, a = fib2(n)
+    s, m = gmpy2digits(b), n
+    while True:
+        a, b, m = b, a + b, m + 1
+        t = gmpy2digits(b)
+        if b > a and s in t:
+            return m
+
+
+def A263457_gen(startvalue=1):  # generator of terms
+    s = 0
+    for n in count(1):
+        s += divisor_count(n)
+        if is_square(8 * s + 1):
+            yield n
+
+
+def A266001_gen():
+    return (
+        j
+        for j in (
+            int(format(i, "b"), 3) + (3 ** n - 1) // 2
+            for n in range(1, 10)
+            for i in range(2 ** n)
+        )
+        if "0" not in gmpy2digits(j, 4)
+    )
+
+
+def A267140(n):
+    u, r, k, m = 2 * n + 1, 4 * n * (n + 1) + 1, 0, 2 * n + 1
+    while True:
+        if is_square(8 * m + r):
+            return m
+        k += 2
+        m += u + k
+
+
+def A267767_gen():
+    return (int(s, 7) for s in (str(i ** 2) for i in count(0)) if max(s) < "7")
+
+
+def A267818_gen():
+    return (
+        int(d, 4)
+        for d in (str(i ** 2) for i in count(1))
+        if max(d) < "4" and isprime(int(d, 4))
+    )
+
+
+def A267982_gen():  # generator of terms
+    yield 0
+    b = 4
+    for n in count(1):
+        yield b
+        b = b * 4 * (n + 1) * (2 * n + 1) ** 2 // (n * (n + 2) ** 2)
+
+
+def A268045(n):
+    if n == 0:
+        return 2
+    flist, k = Counter(factorint((n + 2) * (n + 1) // 2)), 2
+    while max(flist.values()) >= 2:
+        k += 1
+        flist += Counter(factorint(n + k))
+        flist -= Counter(factorint(k))
+    return k
+
+
+def A268140(n):
+    p, n2 = 2, 2 ** n + 1
+    while True:
+        for i in range(1, n2):
+            if isprime(p + i):
+                p += i
+                break
+        else:
+            return p
+
+
+def A268304_gen():  # generator of terms
+    b, m1, m2 = (
+        15,
+        [
+            21941965946880,
+            -54854914867200,
+            49244258396160,
+            -19011472727040,
+            2933960577120,
+            -126898662960,
+            771887070,
+            385943535,
+            385945560,
+        ],
+        [
+            10569646080,
+            -25763512320,
+            22419210240,
+            -8309145600,
+            1209116160,
+            -46992960,
+            415800,
+            311850,
+            311850,
+        ],
+    )
+    for n in count(0):
+        if b % 8 == 7:
+            yield 2 * n + 1
+        b = b * m1[-1] // m2[-1]
+        for i in range(8):
+            m1[i + 1] += m1[i]
+            m2[i + 1] += m2[i]
+
+
+def A269903_gen():  # generator of terms
+    p = 1
+    for i in count(2):
+        p = (p * prime(i)) % 8
+        if p == 7:
+            yield i
+
+
+def A269927_gen():  # generator of terms
+    yield 0
+    blist, c = [0], 1
+    while True:
+        ylist = [1 - d for d in blist]
+        zlist = list(blist)
+        for i in blist:
+            if i:
+                zlist += blist
+            else:
+                zlist += ylist
+        blist = zlist
+        yield from blist[c:]
+        c = len(blist)
+
+
+def A270440_gen():  # generator of terms
+    b = 8
+    for n in count(0):
+        q, r = integer_nthroot(b + 1, 2)
+        yield (q + 1) // 2 + (0 if r else 1)
+        b = b * 2 * (2 * n + 1) // (n + 1)
+
+
+def A271327_gen(startvalue=1):  # generator of terms
+    for n in count(max(startvalue, 1)):
+        p, a, b = prime(n), 1, 1
+        for i in range(n):
+            if not a:
+                yield n
+                break
+            a, b = b, (a + b) % p
+
+
+def A271899_gen():  # generator of terms
+    m = [88, -128, 61, -8] + [1] * 5
+    while True:
+        yield m[-1]
+        for i in range(8):
+            m[i + 1] += m[i]
+
+
+def A272383_gen(startvalue=78):  # generator of terms
+    for i in count(max(startvalue + (78 - startvalue % 78) % 78, 78), 78):
+        for d in divisors(i):
+            if d not in (1, 2, 6, 78) and isprime(d + 1):
+                break
+        else:
+            yield i
+
+
+def A272673_gen():
+    return chain(
+        (0,),
+        (
+            int(str(m ** 2)[1:]) if sum(int(d) for d in str(m ** 2)[1:]) != 1 else 0
+            for m in count(4)
+            if str(m ** 2)[0] == "1"
+        ),
+    )
+
+
+def A272890_gen(startvalue=3):
+    return (
+        n
+        for n in count(max(startvalue, 3))
+        if sum(Fraction(n, a) for a in antidivisors(n)).denominator == 1
+    )
+
+
+def A274951_gen():  # generator of terms
+    a, b = 8, 12
+    yield from [a, b]
+    for i in count(0):
+        c, d = divmod(b ** 2, a)
+        a, b = b, c + (0 if 2 * d < a else 1)
+        yield b
+
+
+def A275465(n):
+    p = min(primefactors(n))
+    return p ** (n // p)
+
+
+def A275544_gen():  # generator of terms
+    yield 1
+    c = [Fraction(0, 1)]
+    while True:
+        c = set(e for d in c for e in (3 * d + 1, d / 2))
+        yield len(c)
+
+
+def A275628_gen():  # generator of terms
+    a, b = 31, 51
+    yield from [a, b]
+    for i in count(0):
+        c, d = divmod(b ** 2, a)
+        a, b = b, c + (0 if 2 * d < a else 1)
+        yield b
+
+
+def A276389_gen():  # generator of terms
+    yield 0
+    m = 1
+    for n in count(1):
+        m *= n
+        s, h = str(m), hex(m)
+        if not len(s) - len(s.rstrip("0")) + len(h.rstrip("0")) - len(h):
+            yield n
+
+
+def A276460_gen():  # generator of terms
+    yield 0
+    for m in count(0):
+        k = m ** 2 + 1
+        for d in divisors(k):
+            if d > m:
+                yield k
+                break
+            if not is_square(k // d - d):
+                break
+
+
+def A276756_gen():
+    return chain(
+        (1,),
+        (
+            n
+            for n in count(2)
+            if max(factorint(n).values()) <= 1
+            and sum(Fraction(p, 10 ** len(str(p))) for p in primefactors(n)).denominator
+            == 1
+        ),
+    )
+
+
+def A277692(n):
+    return (
+        sum(1 for c in divisors(n - 1) if c < n - 1 and not (n * (n - 1) // 2) % c)
+        if n != 2
+        else 1
+    )
+
+
+def A277937(n):
+    return sum(1 for d in bin(n)[2:].split("0") if len(d) == 1)
+
+
+@lru_cache(maxsize=None)
+def A278049(n):
+    if n == 0:
+        return -1
+    c, j = 0, 2
+    k1 = n // j
+    while k1 > 1:
+        j2 = n // k1 + 1
+        c += (j2 - j) * (2 * A278049(k1) - 1) // 3
+        j, k1 = j2, n // j2
+    return 3 * (n * (n - 1) - c + j) // 2 - 1
+
+
+def A280056(n):
+    return (n ** 2 - (n % 2)) * (n - 1) * (n - 2) // 2
+
+
+def A280660(n):
+    m, k, l = 10 ** n, 1, 2
+    while True:
+        if 2 * str(l).count("9") >= n:
+            return k
+        k += 1
+        l = (l * 2) % m
+
+
+def A280717_gen():  # generator of terms
+    yield 3
+    n = 3
+    while True:
+        for i in range(1, n // 2 + 1):
+            j = i ** 2 + n * (n - i)
+            if isprime(j):
+                n = j
+                yield n
+                break
+
+
+def A286328(n):
+    p, area = prime(n), 0
+    k, q, kq = (p + 1) // 2, (p ** 2 - 1) // 2, (p - 1) * (p + 1) ** 2 // 4
+    while True:
+        area += kq
+        if is_square(area):
+            return k
+        k += 1
+        kq += q
+
+
+def A287298(n):  # assumes 2 <= n <= 62
+    m = isqrt(mpz("".join(gmpy2digits(i, n) for i in range(n - 1, -1, -1)), n))
+    m2 = m ** 2
+    d = gmpy2digits(m2, n)
+    while len(set(d)) < len(d):
+        m -= 1
+        m2 -= 2 * m + 1
+        d = gmpy2digits(m2, n)
+    return m2
+
+
+def A287609_gen():  # generator of terms
+    p, q, r = 2, 3, 5
+    while True:
+        n = p * (q + r) + q * r
+        m = n // 3
+        pm, nm = prevprime(m), nextprime(m)
+        k = n - pm - nm
+        if isprime(m):
+            if m == k:
+                yield n
+        else:
+            if nextprime(nm) == k or prevprime(pm) == k:
+                yield n
+        p, q, r = q, r, nextprime(r)
+
+
+def A287686_gen():  # generator of terms
+    p2, q2, r2, r = 4, 9, 25, 5
+    while True:
+        n = p2 + q2 + r2
+        m = n // 3
+        pm, nm = prevprime(m), nextprime(m)
+        k = n - pm - nm
+        if isprime(m):
+            if m == k:
+                yield n
+        else:
+            if nextprime(nm) == k or prevprime(pm) == k:
+                yield n
+        s = nextprime(r)
+        p2, q2, r2, r = q2, r2, s ** 2, s
+
+
+def A288507(n):
+    k, p, q = 1, 2, 3
+    while True:
+        if sum(factorint(q - p).values()) == n and sum(factorint(q + p).values()) == n:
+            return k
+        k += 1
+        p, q = q, nextprime(q)
+
+
+def A289829_gen(startvalue=0):  # generator of terms
+    a, b = integer_nthroot(startvalue, 2)
+    for n in count(max(a + (1 - int(b)), 0)):
+        m = n ** 2 - 1
+        for d in divisors(m):
+            if d * d >= m:
+                break
+            r = m // d
+            if not r % 2:
+                r = r // 2
+                if not isprime(r):
+                    p, q = prevprime(r), nextprime(r)
+                    if m == (q - p) * (q + p):
+                        yield n ** 2
+                        break
+
+
+def A291175_gen():  # generator of terms
+    a, b, c = 1, 1, 2
+    for n in count(3):
+        if c == a + b:
+            yield n
+        a, b, c = b, c, reduced_totient(n + 1)
+
+
+def A291199_gen():  # generator of terms
+    p = 3
+    while True:
+        if is_square(8 * (p - 1) * totient((p + 1) // 2) + 1):
+            yield p
+        p = nextprime(p)
+
+
+def A292995(n):
+    return sum(int(d) for d in str(3 ** n)) // 9
+
+
+def A294092_gen():  # generator of terms
+    m = 59
+    for k in count(119, 120):
+        if pow(2, m, k) == 1 and pow(3, m, k) == 1 and pow(5, m, k) == 1:
+            yield k
+        m += 60
+
+
+def A295430(n):
+    m = 2 * n
+    while True:
+        if str(m)[0] == "3":
+            return m
+        m += n
+
+
+def A295900_gen(startvalue=1):
+    return (n for n in count(max(startvalue, 1)) if "2357" in str(n ** 3))
+
+
+def A296516(n):
+    P, Q = {(1, 0)}, {(0, 1)}
+    for _ in range(n):
+        P, Q = P | Q, set((p[0] + q[0], p[1] + q[1]) for p in P for q in Q)
+    return len(Q)
+
+
+def A297624_gen():  # generator of terms
+    b, c, aflag = 1, 2, False
+    for k in count(1):
+        cflag = isprime(c)
+        if aflag and cflag:
+            yield k
+        b, c, aflag = b + c, b + 2 * c, cflag
+
+
+def A297815(n):
+    f = factorial(n)
+    return sum(
+        f // prod(factorial(d.count(a)) for a in set(d))
+        for d in combinations_with_replacement(range(1, 10), n)
+        if prod(d) == sum(d)
+    )
+
+
+def A298077_gen():
+    return (
+        m
+        for m in (n * (n + 1) for n in count(3))
+        if prevprime(m // 2) + nextprime(m // 2) == m
+    )
+
+
+def A298940(n):
+    if n == 1:
+        return 1
+    try:
+        return discrete_log(3 ** n - 2, -1, 3)
+    except ValueError:
+        return 0
+
+
+def A299300_gen():  # generator of terms
+    p, d, n, r = 2, -1, 0, False
+    while True:
+        pn, k = p - n, d if r else -d
+        if 0 < k <= pn:
+            yield n + k
+        d += -pn if r else pn
+        r, n, p = not r, p, nextprime(p)
+
+
+def A300817(n):
+    p, n2 = 2, n ** 2
+    if n % 2:
+        return 2 if isprime(2 + n2) else 0
+    while not isprime(p + n2):
+        p = nextprime(p)
+    return p
+
+
+def A300902_gen():  # generator of terms
+    yield 1
+    m = 1
+    for n in count(1):
+        m *= n
+        yield m
+        if isprime(n):
+            m //= n
+
+
+def A302292(n):
+    s = set()
+    for i in range(1, (n + 3) // 2):
+        for j in divisors(i):
+            for k in divisors(n - i):
+                if j != k:
+                    s.add((min(j, k), max(j, k)))
+    return divisor_count(n) + 2 * len(s) - 1
+
+
+def A302293(n):
+    s = set()
+    for i in range(1, n):
+        for j in divisors(i):
+            if integer_nthroot(j, 2)[1]:
+                for k in divisors(n - i):
+                    s.add((j, k))
+    return len(s)
+
+
+def A304290_gen(startvalue=0):
+    return (k for k in count(max(startvalue, 0)) if str(k - 1) in str(k ** 2))
+
+
+def A305378(n):
+    m, tlist, s = 2 * n + 1, [1, 2, 4], 0
+    while tlist[-1] + tlist[-2] + tlist[-3] <= m:
+        tlist.append(tlist[-1] + tlist[-2] + tlist[-3])
+    for d in tlist[::-1]:
+        s *= 2
+        if d <= m:
+            s += 1
+            m -= d
+    return s
+
+
+def A305884_gen():  # generator of terms
+    blist, n, m = [], 1, 1
+    while True:
+        for l in range(1, len(blist) + 1):
+            for d in multiset_combinations(blist, l):
+                if integer_nthroot(sum(d) + m, 2)[1]:
+                    break
+            else:
+                continue
+            break
+        else:
+            blist.append(m)
+            yield m
+            continue
+        n += 1
+        m += 2 * n - 1
+
+
+def A306043_gen():  # generator of terms
+    blist, n, m = [], 1, 1
+    while True:
+        for l in range(1, len(blist) + 1):
+            for d in combinations(blist, l):
+                if integer_nthroot(sum(d) + m, 2)[1]:
+                    break
+            else:
+                continue
+            break
+        else:
+            blist.append(m)
+            yield m
+        n += 1
+        m += 2 * n - 1
+
+
+def A306384(n):
+    mset, m, c = set(), n, 0
+    while True:
+        if m == 1 or m == 0 or m == 5:
+            return c
+        m = int(
+            "0"
+            + "".join(
+                d
+                for d in split(
+                    "(0+)|(1+)|(2+)|(3+)|(4+)|(5+)|(6+)|(7+)|(8+)|(9+)", str(2 * m)
+                )
+                if d != "" and d != None and len(d) == 1
+            )
+        )
+        if m in mset:
+            return -1
+        mset.add(m)
+        c += 1
+
+
+def A306540(n):
+    if n == 1 or n == 10:
+        return 1
+    k, nk = 1, n
+    while True:
+        s = str(nk)
+        if s[:2] == "99" or s[:3] == "100":
+            return k
+        k += 1
+        nk *= n
+
+
+def A306572_gen():
+    return (
+        n
+        for n, p in enumerate(primepi(k) for k in count(0))
+        if n > 0 and n % 10 ** len(str(p)) == p
+    )
+
+
+def A307636_gen():
+    return filter(
+        lambda n: all(
+            len(set(s[0]) & set(s[1])) == 0
+            for s in combinations((str(d) for d in divisors(n, generator=True)), 2)
+        ),
+        count(1),
+    )
+
+
+def A308438(n):
+    l, p = 1, nextprime(n)
+    while True:
+        q = nextprime(p)
+        if q - p == 2 * n:
+            return p
+        p = q
+        if p >= (n + 1) * l:
+            l *= 10
+            p = nextprime(n * l)
+
+
+def A308439(n):
+    return min(
+        primefactors(
+            1 + prod(prime(i + 1) for i, j in enumerate(bin(n)[:1:-1]) if j == "1")
+        )
+    )
+
+
+def A308575(n):
+    n2, t1 = 2 ** (n - 1), 0
+    k = n2 - 1
+    kp = primepi(k)
+    kp2 = primepi(k + n2) - kp
+    while kp2 < kp or t1 >= kp:
+        k += n2
+        t1, t2 = kp, kp2
+        kp2 = primepi(k + n2) - kp2
+        kp = t2
+    return 2 * kp
+
+
+def A308777(n):
+    if n == 1:
+        return 1
+    c, p = 0, prime(n)
+    p2, x = p ** 2, [prevprime(p), p, nextprime(p)]
+    while x[1] <= p2:
+        if x[1] - x[0] == 2 or x[2] - x[1] == 2:
+            c += 1
+        x = x[1:] + [nextprime(x[2])]
+    return c
+
+
+def A308935(n):
+    n2, m, m2 = (
+        n ** 2 * (n ** 2 + 1),
+        n + 1,
+        ((n + 1) ** 2 * ((n + 1) ** 2 + 1)) % (n ** 2 * (n ** 2 + 1)),
+    )
+    while m2:
+        m2, m = (m2 + 2 * (2 * m + 1) * (m ** 2 + m + 1)) % n2, (m + 1) % n2
+    return m
+
+
+def A309388_gen():  # generator of terms
+    y, w = 1, 0
+    while True:
+        w += y
+        z = 0
+        for x in range(1, y + 1):
+            z += x
+            if is_square(8 * (w + z) + 1):
+                break
+        else:
+            yield y
+        y += 1
+
+
+def A309387(n):
+    return gcd(n ** 2, harmonic(n - 1).p)
+
+
+def A309851_gen():
+    return (m for m in (int(str(n) + str(2 * n - 1)) for n in count(1)) if isprime(m))
+
+
+def A317977(n):
+    m = 2 ** n - 1
+    c = 4 % m
+    for _ in range(n - 2):
+        c = (c ** 2 - 2) % m
+    return c
+
+
+def A318157_gen():  # generator of terms
+    for n in count(2):
+        if not (isprime(n) or isprime(n + 1) or isprime(n + 2) or isprime(n + 3)):
+            if isprime(4 * n + 5):
+                yield 4 * n + 5
+            if isprime(4 * n + 7):
+                yield 4 * n + 7
+
+
+def A318972(n):
+    return (
+        (7 * n + 1) // 4 if n % 4 == 1 else (7 * n - 1) // 4 if n % 4 == 3 else n // 2
+    )
+
+
+def A319228(n):
+    c, b, b2, n10 = 0, 1, 3, 10 ** n
+    while b <= n10:
+        if isprime(b2):
+            c += 1
+        b += 1
+        b2 += 2 * b
+    return c
+
+
+def A320909_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if isprime(int(str(n ** 2)[::-1])) and isprime(int(str(n ** 3)[::-1]))
+    )
+
+
+def A320920(n):
+    w, m = int(factorial(n)), n
+    bc = [comb(n - 1, i) % w for i in range(n + 1)]
+    while True:
+        bc[n] = (bc[n - 1] + bc[n]) % w
+        if bc[n] == 0:
+            return m
+        for i in range(n - 1, 0, -1):
+            bc[i] = (bc[i - 1] + bc[i]) % w
+        m += 1
+
+
+def A321685(n):
+    return Matrix(n, n, [composite(i) for i in range(1, n ** 2 + 1)]).det()
+
+
+def A322250(n):
+    s = bin(2 * n - 1)[2:].rstrip("1")
+    return int(s, 2) if s != "" else 1
+
+
+def A322743(n):
+    i = 4 if n <= 1 else 2 ** n + 1
+    j = 1 if n <= 2 else 2
+    while True:
+        if not isprime(i):
+            c = 0
+            for m in range(len(bin(i)) - 2):
+                if isprime(i ^ (2 ** m)):
+                    c += 1
+                if c > n:
+                    break
+            if c == n:
+                return i
+        i += j
+
+
+def A323026_gen():
+    return (
+        n
+        for n in (
+            int("".join(s)) for l in count(9) for s in permutations("123456789", l)
+        )
+        if isprime(n - 1) and isprime(n + 1)
+    )
+
+
+def A323062_gen(startvalue=1):
+    return (
+        k
+        for k in count(max(startvalue, 1))
+        if (2 * isqrt(2 ** (2 * k - 1)) - 1) ** 2 > 1 + 4 * (2 ** (2 * k - 1) - 2 ** k)
+    )
+
+
+def A323278_gen():  # generator of terms
+    p, nmax = 2, -1
+    while True:
+        n = divisor_count(p ** 2 - 1)
+        if n > nmax:
+            nmax = n
+            yield p ** 2 - 1
+        p = nextprime(p)
+
+
+def A324309(n):
+    m, k = 2, 2 ** n
+    while True:
+        s = str(k)
+        for i in range(1, len(s)):
+            if s[i] == s[i - 1]:
+                return m
+        m += 1
+        if m % 10 == 0:
+            m += 1
+        k = m ** n
+
+
+def A328131(n):
+    s, tlist = str(n), ("2468", "369", "468", "5", "689", "7", "8", "9")
+    dset = set(
+        "0"
+        + "".join(
+            t if t[0] in s and sum(s.count(d) for d in t) > 1 else "" for t in tlist
+        )
+    )
+    return int("0" + "".join(d for d in s if d not in dset))
+
+
+def A328375_gen(startvalue=0):
+    return (k for k in count(max(startvalue, 0)) if "777" in str(2 ** k))
+
+
+def A328947_geh():
+    return (n for n in (int(bin(m)[2:]) for m in count(0)) if not n % 7)
+
+
+def A329720(n):
+    return sum(int(not (~(n - k) & 6 * k) | (~n & k)) for k in range(n + 1))
+
+
+def A330243_gen(startvalue=0):
+    return (n for n in count(0) if str(2 ** n)[0] == "7")
+
+
+@lru_cache(maxsize=None)
+def A330503(n):
+    if n == 0:
+        return 0
+    c, j = 0, 2
+    k1 = n // j
+    while k1 > 1:
+        j2 = n // k1 + 1
+        c += (j2 - j) * (2 * A330503(k1) // (k1 + 1) - 1)
+        j, k1 = j2, n // j2
+    return (n + 1) * (n * (n - 1) - c + j) // 2
+
+
+def A331988_T(n, k):  # compute T(n,k)
+    if k == 1:
+        count = 1
+        for i in range(1, n):
+            count *= i + 1
+        return count
+    ntuple, count = tuple(range(1, n + 1)), 0
+    for s in combinations_with_replacement(permutations(ntuple, n), k - 2):
+        t = list(ntuple)
+        for d in s:
+            for i in range(n):
+                t[i] += d[i]
+        t.sort()
+        w = 1
+        for i in range(n):
+            w *= (n - i) + t[i]
+        if w > count:
+            count = w
+    return count
+
+
+def A332842(n):
+    m, k = 1, 1
+    for i in range(2, n + 1):
+        k *= i
+        m *= k
+    return int(str(m)[0])
+
+
+def A333445_T(n, k):  # compute T(n,k)
+    c, l = 1, list(range(1, k * n + 1, k))
+    lt = list(l)
+    for i in range(n):
+        for j in range(1, k):
+            lt[i] += l[i] + j
+        c *= lt[i]
+    return c
+
+
+def A333596_gen():
+    return accumulate(A334841(n) for n in count(0))
+
+
+def A333975_gen():  # generator of terms
+    yield from [1, 2]
+    blist, bset, m = [1, 2], set(), 2
+    for i in count(3):
+        for j in range(i - 2):
+            bset.add(m | blist[j])
+        m += 1
+        while m in bset:
+            m += 1
+        blist.append(m)
+        yield m
+
+
+def A334042(n):
+    return 2 ** (len(bin(n ** 2)) - 2) - 1 - n ** 2
+
+
+def A334076(n):
+    m = n | (2 * n)
+    return 0 if n == 0 else 2 ** (len(bin(m)) - 2) - 1 - m
+
+
+def A334116_helper(w, m):
+    a, p, s, vv = m, 0, w, []
+    while a < 2 * m:
+        p += 1
+        s = S.One / (s - floor(s))
+        a = floor(s)
+        if a < 2 * m:
+            vv.append(a)
+    j = (p - 1) // 2
+    v = [0, 1, 1] if p % 2 else [1, 0, vv[j]]
+    for i in range(j - 1, -1, -1):
+        h = vv[i]
+        v = [v[0] + h * v[2], v[2], 2 * h * v[0] + v[1] + h ** 2 * v[2]]
+    return v
+
+
+def A334116(n):
+    w = sqrt(n)
+    m = floor(w)
+    if w == m:
+        return n
+    else:
+        x, y, z = A334116_helper(w, m)
+        if z % 2:
+            x *= 2
+        else:
+            z //= 2
+            y //= 2
+        return (m + z) ** 2 + x + (x * m + y) // z
+
+
+@lru_cache(maxsize=None)
+def A334535(n):
+    if n <= 2:
+        return n
+    i, a, b = 2, A334535(n - 1), A334535(n - 2)
+    q = b
+    while q >= n:
+        i += 1
+        q = A334535(n - i)
+    return 2 * A334535(q) + a - b
+
+
+def A335306(n):
+    p = prime(n)
+    for m in range(max(4, 2 * p - 4), p ** 2 + 1):
+        if sum(primefactors(m)) == p:
+            return m
+
+
+def A335313(n):
+    m = 2 ** (3 * 2 ** n)
+    p = prevprime(m)
+    while not isprime((p - 1) // 2):
+        p = prevprime(p)
+    return m - p
+
+
+def A335940(n):
+    if isprime(n):
+        return n
+    else:
+        pf = primefactors(n)
+        return max(pf) - min(pf)
+
+
+def A336257_gen():  # generator of terms
+    yield from [0, 1]
+    c = 1
+    for n in count(2):
+        c = c * (4 * n - 2) // (n + 1)
+        yield c % (2 * n + 1)
+
+
+def A337098(n):
+    k = 1
+    while True:
+        if n == sum(
+            1
+            for x in combinations((d ** 3 for d in divisors(k)), 4)
+            if sum(x[:-1]) == x[-1]
+        ):
+            return k
+        k += 1
+
+
+def A337212(n):
+    x, y, k, r, m = (3 ** n - 3) // 2, (3 ** n - 3) // 2, (n - 1) % 3, 3 ** (n - 1), 0
+    while True:
+        m += 1
+        a, b = divmod(x, 3)
+        x, k = a + k * r, (k + k - b) % 3
+        if y == x:
+            return m
+
+
+def A339566_gen():  # generator of terms
+    p = 2
+    while True:
+        if int(bin(p)[2:]) % p == 1:
+            yield p
+        p = nextprime(p)
+
+
+def A340290_gen():
+    return (
+        int(s)
+        for s in (gmpy2digits(prime(i), 3) for i in count(1))
+        if isprime(int(s, 4))
+    )
+
+
+def A340479(n):
+    s = str(n)
+    return int(s[::-1]) + sum(int(d) for d in s)
+
+
+def A340768(n):
+    return divisors(composite(n))[2]
+
+
+def A350093_gen():  # generator of terms
+    a, b = divisor_count(1), divisor_count(2)
+    for k in count(1):
+        if a + b == 6:
+            yield k
+        a, b = b, divisor_count(k + 2)
+
+
+def A340876_gen():  # generator of terms
+    p, q, r, s = 2, 3, 5, 7
+    for k in count(1):
+        if pow(p, q, s) == r:
+            yield k
+        p, q, r, s = q, r, s, nextprime(s)
+
+
+def A341115_gen():  # generator of terms
+    m, l, n = 2 ** 101, 2 ** 101 + 1, 10 ** 100
+    for k in count(1):
+        if pow(10, n, l) == l - 1:
+            yield k
+        l += m
+
+
+def A341276(n):
+    return (
+        1
+        + 3 * n * (n + 1)
+        - 2 * sum(n // k for k in range(1, isqrt(n) + 1))
+        + isqrt(n) ** 2
+    )
+
+
+def A341700(n):
+    s, m = 0, nextprime(n)
+    while m <= 2 * n:
+        s += m
+        m = nextprime(m)
+    return s
+
+
+def A342025(n):
+    f = factorint(n)
+    return int(
+        sum(b for a, b in f.items() if a % 4 == 3)
+        == sum(b for a, b in f.items() if a % 4 == 1)
+    )
+
+
+def A342081_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if len([p for p in primefactors(n) if p > 2 and p * p <= n]) == 0
+    )
+
+
+def A342082_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if len([p for p in primefactors(n) if p > 2 and p * p <= n]) > 0
+    )
+
+
+def A342175(n):
+    m = composite(n)
+    k = m + 1
+    while gcd(k, m) != 1 or isprime(k):
+        k += 1
+    return k - m
+
+
+def A342308_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if set(str(n ** 5)) == {"1", "2", "3", "4", "5", "6", "7", "8", "9"}
+    )
+
+
+def A342403(n):
+    return 1 if n == 1 else -sum(d * A342403(d) for d in divisors(n) if d < n)
+
+
+def A342601_gen():  # generator of terms
+    m, s = 2, str(2 ** 10)
+    for k in count(1):
+        if s in str(m):
+            yield k
+        m *= 2
+
+
+def A342851_gen(startvalue=0):
+    return (n for n in count(max(startvalue, 0)) if n == 0 or n % 10)
+
+
+def A342871(n):
+    c = 0
+    for k in range(1, n + 1):
+        m = integer_nthroot(n, k)[0]
+        if m == 1:
+            return c + n - k + 1
+        else:
+            c += m
+    return c
+
+
+def A342892(n):
+    s = bin(n)[2:]
+    m = len(s)
+    i = s[::-1].find("1")
+    return 1 - int(s[m - i - 3]) if m - i - 3 >= 0 else 1
+
+
+def A342906(n):
+    return 2 ** (2 * n - 2) - catalan(n)
+
+
+def A343128_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if n % 2 and n % 5 and prime(prime(prime(n))) % 10 ** (len(str(n))) == n
+    )
+
+
+def A343145(n):
+    k = 1
+    while True:
+        m = k
+        for _ in range(n):
+            m = prime(m)
+        if m % 10 ** (len(str(k))) == k:
+            return k
+        k += 1
+        while not (k % 2 and k % 5):
+            k += 1
+
+
+@lru_cache(maxsize=None)
+def A343493(n):
+    return 1 - sum(A343493(d - 1) for d in divisors(n) if d < n)
+
+
+def A343507(n):
+    k, f = 0, Fraction(1, int(factorial(n)) ** 2)
+    while f.denominator != 1:
+        k += 1
+        f *= Fraction(2 * k * (2 * k - 1), (k + n) ** 2)
+    return k
+
+
+def A343536_gen():  # generator of terms
+    s = "1"
+    for k in count(1):
+        if str(k ** 2) in s:
+            yield k
+        s += str(k + 1)
+
+
+def A343727_gen():
+    return (
+        n
+        for n in (int("".join(d)) for l in count(1) for d in product("13579", repeat=l))
+        if set(str(n ** 2)[:-1]) <= set("02468")
+    )
+
+
+def A343731_gen():  # generator of terms
+    yield 0
+    c = 0
+    for n in count(2):
+        x = prod(n * d + 1 for d in factorint(n).values())
+        if x > c:
+            c = x
+            yield n
+
+
+def A343780(n):
+    q = 1
+    while True:
+        s, c = [1] * n + [0] * n, 0
+        for i in range(n):
+            c = (c + q) % (2 * n - i)
+            if s[c]:
+                break
+            s = s[:c] + s[c + 1 :]
+        else:
+            return q + 1
+        q += 1
+
+
+def A343802(n):
+    s, c = 0, 0
+    while s < 10 ** n:
+        c += 1
+        s += totient(c)
+    return c
+
+
+def A344013_gen():  # generator of terms
+    yield 1
+    b = 1
+    while True:
+        b = sum(ord(s) - 96 for s in unidecode(num2words(b, lang="fr")) if s.isalpha())
+        yield b
+
+
+def A344421(n):
+    return sum(
+        floor(n * sin(x * pi / n)) - int((n * sin(x * pi / n)).is_integer == True)
+        for x in range(1, n)
+    )
+
+
+def A344478(n):
+    fs = factorint(n)
+    return 0 if len(fs) == 0 or max(fs.values()) > 1 else len(fs)
+
+
+def A344856(n):
+    return prime(n) ^ n ** 2
+
+
+def A344888(n):
+    b, m = 2, n
+    while True:
+        m, x = divmod(m, b)
+        m, y = divmod(m, b)
+        while m > 0:
+            m, z = divmod(m, b)
+            if z != x:
+                break
+            if m > 0:
+                m, z = divmod(m, b)
+                if z != y:
+                    break
+            else:
+                return b
+        else:
+            return b
+        b += 1
+        m = n
+
+
+def A344949(n):
+    return min(d[1] ** 2 for d in diop_DN(4 * n + 2, 1)) // 4
+
+
+def A344985(n):
+    s, c, b = bin(n)[2:], 0, 0
+    for x in s:
+        b += 1 if x == "1" else -1
+        c += abs(b)
+    return c
+
+
+def A345299(n):
+    return sum(p ** primepi(p) for p in primefactors(n))
+
+
+def A345301(n):
+    return sum(p ** primepi(n // p) for p in primefactors(n))
+
+
+def A345348_gen():
+    return (
+        n
+        for n in (m * (m + 1) // 2 for m in count(0))
+        if len(bin(n)) - 2 == 2 * bin(n).count("1")
+    )
+
+
+def A345420(n):
+    return igcdex(5, prime(n))[0]
+
+
+def A345696(n):
+    zlist = [
+        z
+        for z in (igcdex(x, y) for x in range(1, n + 1) for y in range(1, n + 1))
+        if z[2] == 1
+    ]
+    return pvariance(len(zlist) * (u ** 2 + v ** 2) for u, v, w in zlist)
+
+
+def A345724(n):
+    return pvariance(
+        n ** 2 * (u + v)
+        for u, v, w in (igcdex(x, y) for x in range(1, n + 1) for y in range(1, n + 1))
+    )
+
+
+def A345725(n):
+    zlist = [
+        z
+        for z in (igcdex(x, y) for x in range(1, n + 1) for y in range(1, n + 1))
+        if z[2] == 1
+    ]
+    return pvariance(len(zlist) * (u + v) for u, v, w in zlist)
+
+
+def A346147_gen():  # generator of terms
+    p, q = 2, 3
+    while True:
+        if isprime(p * q % (p + q)) and isprime(p * q // (p + q)):
+            yield p
+        p, q = q, nextprime(q)
+
+
+def A346203(n):
+    m, k, p, s = 1, 0, 1, str(n)
+    while s not in str(m):
+        k += 1
+        p = nextprime(p)
+        m *= p
+    return k
+
+
+def A346528(n):
+    if n == 1:
+        return 17
+    a, b, k, k2, m, r, s = -6 * (n + 1) ** 2, (n + 1) ** 4, 2, 4, 1, 0, 0
+    while 2 * m + a < 0 or m * (m + a) + b < 0:
+        if isqrt(2 * m) - isqrt(m - 1) == n:
+            r = m
+        if s == 0 and isqrt(2 * m + 2) - isqrt(m) == n:
+            s = m
+        k += 1
+        k2 += 2 * k - 1
+        m = (k2 - 1) // 2
+    return r - s
+
+
+def A347274(n):
+    return 1 if n == 1 else n ** 2 * (n ** n - n) // (n - 1) ** 2
+
+
+def A347275(n):
+    return (
+        2 * n + 1
+        if n <= 1
+        else 2 * (n + sum(n // k for k in range(1, isqrt(n) + 1))) - isqrt(n) ** 2 - 1
+    )
+
+
+def A347304(n):
+    return factorial(n) // factorial(n // 2) // factorial(n // 3) // factorial(n // 6)
+
+
+def A347314_gen():  # generator of terms
+    yield 1
+    nset, m, j = {1}, 2, 2
+    for i in count(2):
+        k = m
+        while k == j or gcd(k, j) == 1 or k in nset:
+            k += 1
+        if i == k:
+            yield i
+        j = k + 1
+        nset.add(k)
+        while m in nset:
+            m += 1
+
+
+def A347815_gen():
+    return (
+        p
+        for p in (prime(n) for n in count(3))
+        if legendre_symbol(30, p) == legendre_symbol(105, p) == -1
+    )
+
+
+def A347816_gen():
+    return (
+        p
+        for p in (prime(n) for n in count(3))
+        if legendre_symbol(15, p) == legendre_symbol(85, p) == -1
+    )
+
+
+def A348017_gen(startvalue=0):
+    return (
+        k
+        for k in count(max(startvalue, 0))
+        if isprime((lambda x: x.p % x.q)(harmonic(k)))
+    )
+
+
+def A022510_gen():  # generator of terms
+    yield 6
+    l = "6"
+    while True:
+        l = "".join(
+            str(len(d)) + d[0]
+            for d in split("(0+|1+|2+|3+|4+|5+|6+|7+|8+|9+)", l[::-1])
+            if d
+        )
+        yield int(l)
+
+
+def A058994_gen():  # generator of terms
+    m = 7
+    for k in count(1):
+        if isprime(int(str(m)[::-1])):
+            yield k
+        m *= 7
+
+
+def A058995_gen():  # generator of terms
+    m = 13
+    for k in count(1):
+        if isprime(int(str(m)[::-1])):
+            yield k
+        m *= 13
+
+
+def A093502_gen():  # generator of terms
+    yield 2
+    p, q = 2, 1
+    while True:
+        r = p + q
+        p, q = prime(r), r
+        yield p
+
+
+def A108860_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if not sum(int(d) for d in str((2 * n) ** n)) % n
+    )
+
+
+def A109675_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if not sum([int(d) for d in str(n ** n - 1)]) % n
+    )
+
+
+def A112258_gen(startvalue=1):
+    return (
+        n for n in count(max(startvalue, 1)) if n % 10 and len(set(str(n ** 26))) < 10
+    )
+
+
+def A123911_gen():  # generator of terms
+    plist = [0] + [prime(i) for i in range(1, 10)]
+    for l in count(1):
+        L = 10 ** (l - 1)
+        H = 10 * L
+        for c in combinations_with_replacement(range(1, 10), l):
+            n = prod(plist[i] for i in c) + sum(c)
+            if L <= n < H and sorted(int(d) for d in str(n)) == list(c):
+                yield n
+
+
+def A126703_gen(startvalue=1):
+    return (n for n in count(max(startvalue, 1)) if isprime(pow(n, n, 10 ** n)))
+
+
+def A137019_gen():
+    return (
+        n
+        for n in (int("".join(d)) for l in count(1) for d in product("1279", repeat=l))
+        if set(str(n ** 2)) <= set("1279")
+    )
+
+
+def A143992_gen(startvalue=2):
+    return (
+        n
+        for n in count(max(startvalue, 2))
+        if n != 4
+        and not isprime(n)
+        and str(sum(a * b for a, b in factorint(n).items())) in str(n)
+    )
+
+
+def A155012_gen():  # generator of terms
+    a, b, a2, b2 = 0, 1, 2, 5
+    while True:
+        if isprime(b) and isprime(b2):
+            yield b
+        a, b, a2, b2 = b, a + b, b2, a2 + b2 - 2
+
+
+def A175975_gen(startvalue=0):
+    return (n for n in count(max(startvalue, 0)) if str(n ** n).count("1") == 2)
+
+
+def A246421_gen(startvalue=1):
+    for n in count(max(startvalue, 1)):
+        s = str(n)
+        if not s.count("0"):
+            s2 = sorted(s)
+            if s2 == sorted(str(n + sum(int(d) for d in s))) and s2 == sorted(
+                str(n + prod(int(d) for d in s))
+            ):
+                yield n
+
+
+def A247047_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if len(set(str(n ** 3))) == 3 and len(set(str(n ** 2))) == 2
+    )
+
+
+def A248135_gen(startvalue=1):
+    for n in count(max(startvalue, 1)):
+        if not isprime(n):
+            a = sum([int(n * e / p) for p, e in factorint(n).items()]) if n > 1 else 0
+            if not sum(a % i for i in range(1, a)) % n:
+                yield n
+
+
+def A255669_gen():  # generator of terms
+    p1, p2, l = 2, 3, 10
+    for n in count(0):
+        p3 = nextprime(p2)
+        if p3 >= l:  # this test is sufficient due to Bertrand-Chebyshev theorem
+            l *= 10
+        if not ((p2 % p1) * l + p3) % p1:
+            yield p1
+        p1, p2 = p2, p3
+
+
+def A259630_gen():  # generator of terms
+    bset, k = set(), 0
+    while True:
+        n, m = 0, 1
+        k += m
+        while n in bset or not isprime(k):
+            n += 1
+            k += m
+            m *= 2
+        bset.add(n)
+        yield n
+
+
+def A260097_gen(startvalue=11):  # generator of terms
+    for n in count(max(startvalue, 11)):
+        s = str(n)
+        for l in range(1, len(s)):
+            m = int(s[:l]) * int(s[l:])
+            if m > 0 and n == divisor_sigma(m):
+                yield n
+                break
+
+
+def A261459_gen(startvalue=0):
+    return (
+        k
+        for k in count(max(startvalue, 0))
+        if is_prime(int("1" * k + str(k * (k + 1) + 1) + "1" * k))
+    )
+
+
+def A264725_gen():  # generator of terms
+    c, n, m, k = 3, 7, 29927007, 10 ** 8
+    while True:
+        if isprime(n):
+            yield c
+        c += 8
+        n = n * k + m
+
+
+def A268511_gen(startvalue=1):  # generator of terms
+    for n in count(max(startvalue + 1 - startvalue % 2, 1), 2):
+        m = factorint(3 ** n + 5 ** n)
+        for d in m:
+            if d % 4 == 3 and m[d] % 2:
+                break
+        else:
+            yield n
+
+
+def A268517_gen():  # generator of terms
+    yield 321
+    a = 321
+    for i in count(0):
+        a = (
+            ((a + 1 + (2 - i) % 3) % 10) * 100
+            + ((a // 100 + 1 + (-i) % 3) % 10) * 10
+            + ((a // 10 + 1 + (1 - i) % 3) % 10)
+        )
+        yield a
+
+
+def A270538_gen():
+    return (
+        n ** 2
+        for n in range(10 ** 6)
+        if n == sum(int(a) ** (b + 1) for b, a in enumerate(str(n ** 2)))
+    )
+
+
+def A276718_gen():  # generator of terms
+    q = 0
+    for i in count(1):
+        s = str(i)
+        q += Fraction(int(s[::-1]), 10 ** len(s))
+        if q.denominator == 1:
+            yield i
+
+
+def A291340_gen():  # generator of terms
+    yield 2
+    p = 3
+    while True:
+        if is_square(8 * (p - 1) * totient((p - 1) // 2) + 1):
+            yield p
+        p = nextprime(p)
+
+
+def A297710_gen():  # generator of terms
+    for i in count(1):
+        n = npartitions(i)
+        s = [int(d) for d in str(n)]
+        for j in range(len(s) - 1):
+            if not (s[j] + s[j + 1]) % 2:
+                break
+        else:
+            yield n
+
+
+def A306666_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if is_square(n * (n * (n * (n * (n - 9) + 33) - 58) + 42))
+    )
+
+
+def A318189(n):
+    r, q = n % 2, 2
+    while True:
+        c, m = 0, q
+        for i in range(n + 1):
+            c += m
+            m = prime(m)
+        if is_prime(r + c):
+            return q
+        q = nextprime(q)
+
+
+def A322047_gen(startvalue=0):
+    return (n for n in count(max(startvalue, 0)) if "e" not in num2words(n, lang="fi"))
+
+
+def A311481(n):
+    return ord(unidecode.unidecode(num2words(n, to="ordinal")).lower()[0]) - 96
+
+
+def A311482(n):
+    return ord(unidecode.unidecode(num2words(n, lang="nl")).lower()[0]) - 96
+
+
+def A311498(n):
+    return ord(unidecode.unidecode(num2words(n, lang="fr")).lower()[0]) - 96
+
+
+def A332242_gen():  # generator of terms
+    n = 1
+    for i in count(0):
+        s = str(n)
+        if len(s) - s.count("0") == i:
+            yield i
+        n *= i + 1
+
+
+def A333122_gen():  # generator of terms
+    plist = [2, 3, 5, 7, 11, 13]
+    while True:
+        m = plist[0] + plist[5]
+        if m == plist[1] + plist[4]:
+            yield m
+        plist = plist[1:] + [nextprime(plist[-1])]
+
+
+def A333390_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if isprime(primorial(2 * n, nth=False) * 2 ** n - 1)
+    )
+
+
+def A335361_gen():  # generator of terms
+    p = 2
+    while True:
+        f, g = factorial(p), 1
+        for i in range(1, p + 1):
+            g += f
+            if isprime(g):
+                break
+        else:
+            yield p
+        p = nextprime(p)
+
+
+def A337508_gen():  # generator of terms
+    p = 11
+    while True:
+        s = str(p)
+        l = len(s) // 2
+        if not (isprime(int(s[:l])) or isprime(int(s[-l:]))):
+            yield p
+        p = nextprime(p)
+
+
+def A339174_gen():  # generator of terms
+    yield 2
+    a = 2
+    while True:
+        c, b = 1, (a - 1) * a
+        for k in count(1):
+            c += b
+            if isprime(c):
+                yield k
+                a = c
+                break
+
+
+def A340431_gen():  # generator of terms
+    p = 2
+    while True:
+        q = nextprime(p)
+        if q > p + 2:
+            pq = p + q
+            if pow(q, p, pq) == q and pow(p, q, pq) == p:
+                yield p
+        p = q
+
+
+def A340466_gen():
+    return (
+        p
+        for p in (prime(n) for n in count(1))
+        if len(bin(p)) - 2 < 2 * bin(p).count("1") < 2 * len(bin(p)) - 4
+    )
+
+
+def A000201(n):
+    return (n + isqrt(5 * n ** 2)) // 2
+
+
+def A185381(n):
+    return fibonacci((n + isqrt(5 * n ** 2)) // 2)
+
+
+def A350678(n):
+    return sum(fibonacci((i + isqrt(5 * i ** 2)) // 2) for i in range(n + 1))
+
+
+def A342118_gen():  # generator of terms
+    plist = [Fraction(1, totient(i)) for i in range(1, 7)]
+    p = sum(plist)
+    for k in count(1):
+        if p.numerator == 1:
+            yield k
+        p -= plist[0]
+        plist = plist[1:] + [Fraction(1, totient(k + 6))]
+        p += plist[-1]
+
+
+def A342221_gen(startvalue=1):  # generator of terms
+    for k in count(max(startvalue, 1)):
+        if k % 3 != 1:
+            m, l = (10 ** k - 1) // 9, 2
+            for i in range(k):
+                if isprime(m + l):
+                    break
+                l *= 10
+            else:
+                yield k
+
+
+def A342349_gen():
+    p = 2
+    while True:
+        q = p ** 3
+        C1, C2 = Counter(s := str(p)), Counter(str(q))
+        if all(C1[d] <= C2[d] for d in s):
+            yield q
+        p = nextprime(p)
+
+
+def A342503_gen(startvalue=1):
+    return (
+        k
+        for k in count(max(startvalue, 1))
+        if sum(k % i for i in range(1, k // 2 + 1) if gcd(i, k) == 1) % k == 0
+    )
+
+
+def A342809_gen(startvalue=1):
+    return (
+        k
+        for k in count(max(startvalue, 1))
+        if isprime(k - 1) and isprime(k // 5 + int(k % 5 > 2))
+    )
+
+
+def A343011_gen(startvalue=1):
+    return (
+        n
+        for n in count(max(startvalue, 1))
+        if (divisor_sigma(n, 0) * divisor_sigma(n, 2) - divisor_sigma(n, 1) ** 2)
+        % divisor_sigma(n, 0) ** 2
+        == 0
+    )
+
+
+def A343732_gen(startvalue=2):
+    return (
+        n
+        for n in count(max(startvalue, 2))
+        if len(factorint(prod(n * d + 1 for d in factorint(n).values()))) == 1
+    )
+
+
+def A344202_gen():  # generator of terms
+    p = 5
+    while True:
+        if gcd(n_order(2, p), n_order(3, p)) == 1:
+            yield p
+        p = nextprime(p)
+
+
+def A000040(n):
+    return prime(n)
+
+
+def A000079(n):
+    return 2 ** n
+
+
+def A000142(n):
+    return factorial(n)
+
+
+def A001222(n):
+    return sum(factorint(n).values())
+
+
+def A007318_T(n, k):
+    return comb(n, k)
+
+
+def A001221(n):
+    return len(factorint(n))
+
+
+def A001358_gen(startvalue=2):
+    return (n for n in count(max(startvalue, 2)) if A001222(n) == 2)
+
+
+def A000720(n):
+    return primepi(n)
+
+
+def A002110(n):
+    return 1 if n == 0 else primorial(n)
+
+
+def A034386(n):
+    return 1 if n == 0 else primorial(n, nth=False)
+
+
+def A008683(n):
+    return mobius(n)
+
+
+def A000032(n):
+    return lucas(n)
+
+
+def A000225(n):
+    return 2 ** n - 1
+
+
+def A002275(n):
+    return (10 ** n - 1) // 9
+
+
+def A005408(n):
+    return 2 * n + 1
+
+
+def A006530(n):
+    return 1 if n == 1 else max(primefactors(n))
+
+
+def A020639(n):
+    return 1 if n == 1 else min(primefactors(n))
+
+
+def A000984(n):
+    return comb(2 * n, n)
+
+
+def A000292(n):
+    return comb(n + 2, 3)
+
+
+def A000244(n):
+    return 3 ** n
+
+
+def A002378(n):
+    return n * (n + 1)
+
+
+def A005843(n):
+    return 2 * n
+
+
+def A000129_gen():  # generator of terms
+    a, b = 0, 1
+    yield from [a, b]
+    while True:
+        a, b = b, a + 2 * b
+        yield b
+
+
+def A000041(n):
+    return npartitions(n)
+
+
+def A001045_gen():  # generator of terms
+    a, b = 0, 1
+    yield from [a, b]
+    while True:
+        a, b = b, 2 * a + b
+        yield b
+
+
+def A000043_gen():
+    return (p for p in (prime(n) for n in count(1)) if isprime(2 ** p - 1))
+
+
+def A008277_T(n, k):
+    return stirling(n, k)
+
+
+def A000396_gen():
+    return filter(lambda n: divisor_sigma(n) == 2 * n, count(1))
+
+
+def A000035(n):
+    return n % 2
+
+
+def A010060_gen():  # generator of terms
+    yield 0
+    blist = [0]
+    while True:
+        c = [1 - d for d in blist]
+        blist += c
+        yield from c
+
+
+def A000312(n):
+    return n ** n
+
+
+def A000326(n):
+    return n * (3 * n - 1) // 2
+
+
+def A000302(n):
+    return 4 ** n
+
+
+def A001065(n):
+    return divisor_sigma(n) - n
+
+
+def A000330(n):
+    return n * (n + 1) * (2 * n + 1) // 6
+
+
+def A002620(n):
+    return n ** 2 // 4
+
+
+def A004526(n):
+    return n // 2
+
+
+def A001405(n):
+    return comb(n, n // 2)
+
+
+def A001764(n):
+    return comb(3 * n, n) // (2 * n + 1)
+
+
+def A000124(n):
+    return n * (n + 1) // 2 + 1
