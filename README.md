@@ -57,6 +57,6 @@ print(list(islice(A153695_gen(),10)))
 Numbers n such that n<sup>3</sup> has one or more occurrences of exactly nine different digits.
 ```
 from oeis_sequences.OEISsequences import A235811_gen 
-print(list(islice(A235811_gen(startvalue=1475),10)))
+print(list(islice(A235811_gen(startvalue=1475),10))) # print first 10 terms >= 1475
 >> [1475, 1484, 1531, 1706, 1721, 1733, 1818, 1844, 1895, 1903]
 ```
