@@ -121,6 +121,8 @@ from sympy import (
     S,
     catalan,
     npartitions,
+    ceiling,
+    log,
 )
 from sympy.functions import hyper, partition, euler
 from sympy.ntheory import (
@@ -155,6 +157,7 @@ from sympy.ntheory.continued_fraction import (
 )
 from sympy.ntheory.modular import crt
 from sympy.combinatorics.subsets import Subset
+from sympy.solvers.diophantine import diophantine
 from sympy.solvers.diophantine.diophantine import diop_quadratic, diop_DN
 from sympy.abc import x as symbolx, y as symboly
 from gmpy2 import (
@@ -1942,7 +1945,7 @@ def A328447(n):
 
 def A005188_gen():  # generator of terms
     for k in range(1, 40):
-        a = [i**k for i in range(10)]
+        a = tuple(i**k for i in range(10))
         yield from (
             x[0]
             for x in sorted(
@@ -23178,3 +23181,550 @@ def A308485(n):
         for m in range(prime(n) + 1, prime(n + 1))
         for p, e in factorint(m).items()
     )
+
+
+def A351855_gen():  # generator of terms
+    c, k, ks, m, p, q = 0, 1, 2, 1, 4, 5
+    while True:
+        for n in range(ks, ks + 2 * k):
+            c += n
+            if c == m:
+                yield c
+            else:
+                while c > m:
+                    m += p
+                    p += 1
+                    if p == q:
+                        q = nextprime(q)
+                        p += 1
+        ks += 2 * k + 1
+        k += 1
+
+
+def A352813(n):
+    m = factorial(2 * n)
+    return (
+        0
+        if n == 0
+        else min(
+            abs((p := prod(d)) - m // p)
+            for d in combinations(range(2, 2 * n + 1), n - 1)
+        )
+    )
+
+
+def A038667(n):
+    m = factorial(n)
+    return (
+        0
+        if n == 0
+        else min(
+            abs((p := prod(d)) - m // p)
+            for l in range(n, n // 2, -1)
+            for d in combinations(range(1, n + 1), l)
+        )
+    )
+
+
+def A061057(n):
+    k = factorial(n)
+    m = max(d for d in divisors(k, generator=True) if d <= isqrt(k))
+    return k // m - m
+
+
+def A263292(n):
+    m = factorial(n)
+    return (
+        1
+        if n == 0
+        else len(
+            set(
+                abs((p := prod(d)) - m // p)
+                for l in range(n, n // 2, -1)
+                for d in combinations(range(1, n + 1), l)
+            )
+        )
+    )
+
+
+def A200744(n):
+    m = factorial(n)
+    return min(
+        (abs((p := prod(d)) - m // p), max(p, m // p))
+        for l in range(n, n // 2, -1)
+        for d in combinations(range(1, n + 1), l)
+    )[1]
+
+
+def A200743(n):
+    m = factorial(n)
+    return min(
+        (abs((p := prod(d)) - m // p), min(p, m // p))
+        for l in range(n, n // 2, -1)
+        for d in combinations(range(1, n + 1), l)
+    )[1]
+
+
+def A351744(n):
+    return int(str(n).translate({48: 49, 50: 51, 52: 53, 54: 55, 56: 57}))
+
+
+def A106747(n):
+    return int(
+        str(n).translate(
+            {49: 48, 50: 49, 51: 49, 52: 50, 53: 50, 54: 51, 55: 51, 56: 52, 57: 52}
+        )
+    )
+
+
+def A107130(n):
+    return int(str(n).translate({49: 48, 51: 49, 53: 50, 55: 51, 57: 52}))
+
+
+def A306436(n):
+    return int(
+        str(n).translate(
+            {
+                48: 49,
+                49: 48,
+                50: 51,
+                51: 50,
+                52: 53,
+                53: 52,
+                54: 55,
+                55: 54,
+                56: 57,
+                57: 56,
+            }
+        )
+    )
+
+
+def A107128(n):
+    return int(str(n).translate({50: 49, 52: 50, 54: 51, 56: 52}))
+
+
+def A352788_gen():  # generator of terms
+    c, m, ms = 0, 1, 1
+    for n in count(1):
+        c += 1 if n <= 2 else n * totient(n) // 2
+        if c == ms:
+            yield c
+        else:
+            while c > ms:
+                ms += 2 * m + 1
+                m += 1
+
+
+def A352148_gen():  # generator of terms
+    yield 0
+    for l in count(0):
+        for d in range(1, 10):
+            for m in range(2**l, 2 ** (l + 1)):
+                a, b = integer_nthroot(8 * d * int(bin(m)[2:]) + 1, 2)
+                if b:
+                    yield (a - 1) // 2
+
+
+def A353243_gen():  # generator of terms
+    k, c = Fraction(), 0
+    for n in count(1):
+        k += Fraction(1, n)
+        if c < (m := max(continued_fraction(k))):
+            c = m
+            yield n
+
+
+def A353244_gen():  # generator of terms
+    k, c = Fraction(), 0
+    for n in count(1):
+        k += Fraction(1, n)
+        if c < (m := max(continued_fraction(k))):
+            yield (c := m)
+
+
+def A023896(n):
+    return 1 if n == 1 else n * totient(n) // 2
+
+
+def A103181(n):
+    return int("".join(str(int(d) % 2) for d in str(n)))
+
+
+def A352881(n):
+    from sympy.abc import y, z
+
+    zc = Counter()
+    for x in range(1, 10**n + 1):
+        for d in diophantine(z * (x + y) - x * y):
+            if x <= d[0] <= 10 ** n and d[1] >= 0:
+                zc[d[1]] += 1
+    return sorted(zc.items(), key=lambda x: (-x[1], x[0]))[0][0]
+
+
+def A352635(n):
+    cset, iset = set(), set()
+    for i in range(n):
+        if i not in iset:
+            j, jset, jlist = i, set(), []
+            while j not in jset:
+                jset.add(j)
+                jlist.append(j)
+                iset.add(j)
+                j = (j**2 + 1) % n
+            cset.add(min(jlist[jlist.index(j) :]))
+    return len(cset)
+
+
+@lru_cache(maxsize=None)
+def A352969_set(n):
+    if n == 0:
+        return {1}
+    return set(
+        sum(x) for x in combinations_with_replacement(A352969_set(n - 1), 2)
+    ) | set(prod(x) for x in combinations_with_replacement(A352969_set(n - 1), 2))
+
+
+def A353969(n):
+    return len(A352969_set(n))
+
+
+def A263995(n):
+    return len(
+        set(sum(x) for x in combinations_with_replacement(range(1, n + 1), 2))
+        | set(prod(x) for x in combinations_with_replacement(range(1, n + 1), 2))
+    )
+
+
+def A352040(n):
+    k = 10 * n - 1 + int(ceiling((10 * n - 1) * log(5, 2)))
+    s = str(c := 2**k)
+    while any(s.count(d) < n for d in "0123456789"):
+        c *= 2
+        k += 1
+        s = str(c)
+    return k
+
+
+@lru_cache(maxsize=None)
+def A352289(n):
+    return 1 if n == 1 else 2 * prime(A352289(n - 1))
+
+
+def A064989(n):
+    return prod(1 if p == 2 else prevprime(p) * e for p, e in factorint(n).items())
+
+
+def A252463(n):
+    return A064989(n) if n % 2 else n // 2
+
+
+def A353412(n):
+    return int(
+        bin(
+            prod(1 if p == 2 else prevprime(p) * e for p, e in factorint(n).items())
+            if n % 2
+            else n // 2
+        )[2:].rstrip("0"),
+        2,
+    )
+
+
+def A051064(n):
+    c = 1
+    a, b = divmod(n, 3)
+    while b == 0:
+        a, b = divmod(a, 3)
+        c += 1
+    return c
+
+
+def A352992(n):
+    n10, n7 = 10**n, (10**n - 1) * 7 // 9
+    for m in count(1):
+        a, b = divmod(m**3, n10)
+        if b == n7 and a % 10 != 7:
+            return m
+
+
+def A351374_gen():  # generator of terms
+    for k in range(1, 157):
+        a = tuple(i**k for i in range(20))
+        yield from (
+            x[0]
+            for x in sorted(
+                filter(
+                    lambda x: x[0] > 0
+                    and tuple(sorted(sympydigits(x[0], 20)[1:])) == x[1],
+                    (
+                        (sum(map(lambda y: a[y], b)), b)
+                        for b in combinations_with_replacement(range(20), k)
+                    ),
+                )
+            )
+        )
+
+
+def A010354_gen():  # generator of terms
+    for k in range(1, 30):
+        a = tuple(i**k for i in range(8))
+        yield from (
+            x[0]
+            for x in sorted(
+                filter(
+                    lambda x: x[0] > 0
+                    and tuple(int(d, 8) for d in sorted(oct(x[0])[2:])) == x[1],
+                    (
+                        (sum(map(lambda y: a[y], b)), b)
+                        for b in combinations_with_replacement(range(8), k)
+                    ),
+                )
+            )
+        )
+
+
+def A161953_gen():  # generator of terms
+    for k in range(1, 74):
+        a = tuple(i**k for i in range(16))
+        yield from (
+            x[0]
+            for x in sorted(
+                filter(
+                    lambda x: x[0] > 0
+                    and tuple(int(d, 16) for d in sorted(hex(x[0])[2:])) == x[1],
+                    (
+                        (sum(map(lambda y: a[y], b)), b)
+                        for b in combinations_with_replacement(range(16), k)
+                    ),
+                )
+            )
+        )
+
+
+def A352065(n):
+    plist = [prime(k) for k in range(1, 2 * n + 2)]
+    pd = prod(plist)
+    while True:
+        mlist = [nextprime(pd // (2 * n + 1) - 1)]
+        for _ in range(n):
+            mlist = [prevprime(mlist[0])] + mlist + [nextprime(mlist[-1])]
+        if sum(mlist) <= pd:
+            while (s := sum(mlist)) <= pd:
+                if s == pd:
+                    return plist[0]
+                mlist = mlist[1:] + [nextprime(mlist[-1])]
+        else:
+            while (s := sum(mlist)) >= pd:
+                if s == pd:
+                    return plist[0]
+                mlist = [prevprime(mlist[0])] + mlist[:-1]
+        pd //= plist[0]
+        plist = plist[1:] + [nextprime(plist[-1])]
+        pd *= plist[-1]
+
+
+def A353073_gen(startvalue=3):  # generator of terms
+    q = nextprime(max(startvalue, 3) - 1)
+    p, r = prevprime(q), nextprime(q)
+    while True:
+        if integer_nthroot(q - p, 2)[1] and integer_nthroot(r - q, 2)[1]:
+            yield q
+        t = q
+        for i in count(1):
+            t += 2 * i - 1
+            if t >= r:
+                break
+            if integer_nthroot(r - t, 2)[1]:
+                yield t
+        p, q, r = q, r, nextprime(r)
+
+
+def A007918(n):
+    return nextprime(n - 1)
+
+
+def A353088_gen():  # generator of terms
+    p, q, g, h = 3, 5, True, False
+    while True:
+        if g and h:
+            yield p
+        p, q = q, nextprime(q)
+        g, h = h, integer_nthroot(q - p, 2)[1]
+
+
+def A353087(n):
+    k, m, r = 1, 1, 10 ** (10 * n - 1)
+    while m < r:
+        k += 1
+        m *= k
+    s = str(m)
+    while any(s.count(d) < n for d in "0123456789"):
+        k += 1
+        m *= k
+        s = str(m)
+    return k
+
+
+def A353054_gen():  # generator of terms
+    for l in count(1):
+        a, b = 10**l - 2, 10 ** (l - 1) - 2
+        for m in range(1, 10):
+            q, r = divmod(m * a - 1, 19)
+            if r == 0 and b <= q - 2 <= a:
+                yield 10 * q + m
+
+
+def A034180_gen():  # generator of terms
+    for l in count(1):
+        clist = []
+        for k in range(1, 10):
+            a, b = 10**l - k, 10 ** (l - 1) - k
+            for m in range(1, 10):
+                q, r = divmod(m * a - 1, 10 * k - 1)
+                if r == 0 and b <= q - k <= a:
+                    clist.append(10 * q + m)
+        yield from sorted(clist)
+
+
+def A035126_gen():  # generator of terms
+    for l in count(0):
+        l1, l2 = 10 ** (l + 1), 10**l
+        yield from sorted(
+            set(
+                x**2
+                for z in (diop_DN(10, m * (1 - l1)) for m in range(10))
+                for x, y in z
+                if l1 >= x**2 >= l2
+            )
+        )
+
+
+def A035127_gen():  # generator of terms
+    for l in count(0):
+        l1, l2 = 10 ** (l + 1), 10**l
+        yield from sorted(
+            set(
+                y**2
+                for z in (diop_DN(10, m * (1 - l1)) for m in range(10))
+                for x, y in z
+                if l1 >= x**2 >= l2
+            )
+        )
+
+
+def A045877_gen():  # generator of terms
+    for l in count(0):
+        l1, l2 = 10 ** (l + 1), 10**l
+        yield from sorted(
+            set(
+                abs(x)
+                for z in (diop_DN(10, m * (1 - l1)) for m in range(10))
+                for x, y in z
+                if l1 >= x**2 >= l2
+            )
+        )
+
+
+def A045878_gen():  # generator of terms
+    for l in count(0):
+        l1, l2 = 10 ** (l + 1), 10**l
+        yield from sorted(
+            set(
+                abs(y)
+                for z in (diop_DN(10, m * (1 - l1)) for m in range(10))
+                for x, y in z
+                if l1 >= x**2 >= l2
+            )
+        )
+
+
+def A353220(n):
+    return reduce(lambda x, _: (3 * x + 1) // 2, range(n), n)
+
+
+def A353215(n):
+    return reduce(lambda x, _: (3 * x - 1) // 2, range(n), n)
+
+
+def A353613_gen(startvalue=1):  # generator of terms
+    for m in count(max(startvalue, 1)):
+        m2, m5 = multiplicity(2, m), multiplicity(5, m)
+        if set(
+            str(10 ** (max(m2, m5) + n_order(10, m // 2**m2 // 5**m5)) // m)
+        ) <= {"0", "2", "4", "6", "8"}:
+            yield m
+
+
+def A353614_gen(startvalue=1):  # generator of terms
+    for n in count(max(startvalue, 1)):
+        m2, m5 = multiplicity(2, n), multiplicity(5, n)
+        k, m = 10 ** max(m2, m5), 10 ** (t := n_order(10, n // 2**m2 // 5**m5)) - 1
+        c = k // n
+        s = str(m * k // n - c * m).zfill(t)
+        if set(str(c).lstrip("0") + ("" if int(s) == 0 else s)) <= {
+            "1",
+            "3",
+            "5",
+            "7",
+            "9",
+        }:
+            yield n
+
+
+def A338754(n):
+    return int("".join(d * 2 for d in str(n)))
+
+
+def A338086(n):
+    return int("".join(d * 2 for d in gmpy2digits(n, 3)), 3)
+
+
+def A351501(n):
+    return comb(m := n**2 + n - 1, n) // m
+
+
+def A099306(n):
+    return A003415(A003415(A003415(n)))
+
+
+def A068346(n):
+    return A003415(A003415(n))
+
+
+def A353691_helper(n):
+    f = factorint(n).items()
+    return prod(p**e * (p - 1) * (e + 1) for p, e in f), prod(
+        p ** (e + 1) - 1 for p, e in f
+    )
+
+
+def A353691(n):
+    Hnp, Hnq = A353691_helper(n)
+    g = gcd(Hnp, Hnq)
+    Hnp //= g
+    Hnq //= g
+    k = n + 1
+    Hkp, Hkq = A353691_helper(k)
+    while (Hkp * Hnq) % (Hkq * Hnp):
+        k += 1
+        Hkp, Hkq = A353691_helper(k)
+    return k
+
+
+def A352940(n):
+    return (isqrt(n**2 * (n * (2 * n - 4) + 2) + 1) - 1) // 2
+
+
+def A353709_gen():  # generator of terms
+    s, a, b, c, ab = {0, 1}, 0, 1, 2, 1
+    yield from (0, 1)
+    while True:
+        for n in count(c):
+            if not (n & ab or n in s):
+                yield n
+                a, b = b, n
+                ab = a | b
+                s.add(n)
+                while c in s:
+                    c += 1
+                break
