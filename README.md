@@ -34,7 +34,7 @@ def Axxxxxx(n,offset=1): return next(islice(Axxxxxx_gen(),n-offset,None))
 
 where a(*offset*) is the first term returned by the generator. This value of *offset* is the same as the *offset* parameter in the OEIS database.
 
-Some functions `Axxxxxx_gen` contain an optional keyword `startvalue` that returns a generator of terms that are larger than or equal to `startvalue`.
+Some functions `Axxxxxx_gen` contain an optional keyword `startvalue` that returns a generator of terms that are larger than or equal to `startvalue`. This keyword is only available on sequences that are nondecreasing.
 
 For some sequences, e.g. `A269483`, both types of functions `Axxxxxx` and `Axxxxxx_gen` are provided.
 
