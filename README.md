@@ -60,3 +60,6 @@ from oeis_sequences.OEISsequences import A235811_gen
 print(list(islice(A235811_gen(startvalue=1475),10))) # print first 10 terms >= 1475
 >> [1475, 1484, 1531, 1706, 1721, 1733, 1818, 1844, 1895, 1903]
 ```
+
+## Utility functions
+The module also includes some utility functions for exploring integer sequences in OEIS such as palindrome generator, Boustrophedon transform, run length transform, lunar arithmetic, etc.

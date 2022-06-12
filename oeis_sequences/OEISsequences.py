@@ -51,6 +51,9 @@ Examples:
    print(list(islice(A235811_gen(startvalue=1475),10)))
    >> [1475, 1484, 1531, 1706, 1721, 1733, 1818, 1844, 1895, 1903]
 
+The module also includes some utility functions for exploring integer sequences in OEIS such as palindrome generator, 
+Boustrophedon transform, run length transform, lunar arithmetic, etc.
+
 """
 
 from __future__ import print_function, division
@@ -73,7 +76,8 @@ from itertools import (
 from fractions import Fraction
 from collections import Counter, deque
 from math import factorial, floor, comb, prod, isqrt
-from operator import mul, xor, add
+from operator import mul, xor, add, or_
+from operator import sub as operator_sub
 from re import finditer, split, sub
 from statistics import pvariance
 from sympy.core.numbers import igcdex
@@ -439,6 +443,24 @@ def repeating_decimals_expr(f, digits_only=False):
     else:
         w = len(s) - r
         return s[:w] + "." + s[w:] + "[" + str(m * k * a // b - c * m).zfill(t) + "]"
+
+
+def Boustrophedon_transform(x):
+    """Boustrophedon transform of the iterable x
+    returns generator"""
+    blist = tuple()
+    for m in x:
+        yield (blist := tuple(accumulate(reversed(blist), initial=m)))[-1]
+
+
+def inverse_Boustrophedon_transform(x):
+    """inverse Boustrophedon transform of the iterable x
+    returns generator"""
+    blist = tuple()
+    for m in x:
+        yield (
+            blist := tuple(accumulate(reversed(blist), func=operator_sub, initial=m))
+        )[-1]
 
 
 """ Lunar arithmetic """
@@ -1454,16 +1476,10 @@ def A003418(n):
 
 
 def A000111_gen():  # generator of terms
-    yield 1
-    yield 1
-    blist = [1]
-    for n in count(0):
-        blist = (
-            list(reversed(list(accumulate(reversed(blist))))) + [0]
-            if n % 2
-            else [0] + list(accumulate(blist))
-        )
-        yield sum(blist)
+    yield from (1, 1)
+    blist = (0, 1)
+    while True:
+        yield (blist := tuple(accumulate(reversed(blist), initial=0)))[-1]
 
 
 def A014137_gen():
@@ -17972,14 +17988,9 @@ def A253578_gen(startvalue=1):
 
 def A253671_gen():  # generator of terms
     yield 1
-    blist, l1, l2 = [1], [1], 1, 1
-    for n in count(0):
-        blist = (
-            list(reversed(list(accumulate(reversed(blist))))) + [0]
-            if n % 2
-            else [0] + list(accumulate(blist))
-        )
-        l2, l1 = l1, sum(blist)
+    blist, l1, l2 = (0, 1), 1, 1
+    while True:
+        l2, l1 = l1, (blist := tuple(accumulate(reversed(blist), initial=0)))[-1]
         yield l1 // l2
 
 
@@ -20256,10 +20267,6 @@ def A000396_gen():
     return filter(lambda n: divisor_sigma(n) == 2 * n, count(1))
 
 
-def A000035(n):
-    return n % 2
-
-
 def A010060_gen():  # generator of terms
     yield 0
     blist = [0]
@@ -20299,6 +20306,14 @@ def A004526(n):
 
 def A001405(n):
     return comb(n, n // 2)
+
+
+def A001405_gen():  # generator of terms
+    yield 1
+    a = 1
+    for i in count(1):
+        a = 2 * a * i // (i + 1) if i & 1 else 2 * a
+        yield a
 
 
 def A001764(n):
@@ -20637,18 +20652,32 @@ def A350743(n):
 
 
 def A018819_gen():  # generator of terms
-    yield 1
-    blist = [1]
-    for n in count(1, 2):
-        blist.append(blist[-1])
-        yield blist[-1]
-        blist.append(blist[-1] + blist[(n + 1) // 2])
-        yield blist[-1]
+    aqueue, f, b, a = deque([2]), True, 1, 2
+    yield from (1, 1, 2, 2, 4, 4)
+    while True:
+        a += b
+        yield from (2 * a,) * 2
+        aqueue.append(a)
+        if f:
+            b = aqueue.popleft()
+        f = not f
 
 
 @lru_cache(maxsize=None)
 def A018819(n):
     return 1 if n == 0 else A018819(n - 1) + (0 if n % 2 else A018819(n // 2))
+
+
+def A000123_gen():  # generator of terms
+    aqueue, f, b, a = deque([2]), True, 1, 2
+    yield from (1, 2, 4)
+    while True:
+        a += b
+        yield 2 * a
+        aqueue.append(a)
+        if f:
+            b = aqueue.popleft()
+        f = not f
 
 
 @lru_cache(maxsize=None)
@@ -24589,3 +24618,1824 @@ def A234848_gen():
             if integer_nthroot(8 * n + 1, 2)[1]
         ),
     )
+
+
+def A004647(n):
+    return int(oct(2**n)[2:])
+
+
+def A354256_gen():  # generator of terms
+    for l in count(2, 2):
+        for m in (1, 4, 5, 6, 9):
+            for k in range(
+                1 + isqrt(m * 10 ** (l - 1) - 1), 1 + isqrt((m + 1) * 10 ** (l - 1) - 1)
+            ):
+                if k % 10 and integer_nthroot(int(str(k * k)[::-1]), 2)[1]:
+                    yield k * k
+
+
+def A353990_gen():  # generator of terms
+    yield 1
+    a, s, b = 1, 2, set()
+    while True:
+        for i in count(s):
+            if not (i == a + 1 or i & a or gcd(i, a) > 1 or i in b):
+                yield i
+                a = i
+                b.add(i)
+                while s in b:
+                    s += 1
+                break
+
+
+def A114112(n):
+    return n + (0 if n <= 2 else -1 + 2 * (n % 2))
+
+
+def A114113(n):
+    return 1 if n == 1 else (m := n // 2) * (n + 1) + (n + 1 - m) * (n - 2 * m)
+
+
+def A033999(n):
+    return -1 if n % 2 else 1
+
+
+def A354008(n):
+    return (
+        1
+        if n == 1
+        else (k := (m := n // 2) * (n + 1) + (n + 1 - m) * (n - 2 * m)) // gcd(k, n)
+    )
+
+
+def A141310(n):
+    return 2 if n % 2 else n + 1
+
+
+def A130883(n):
+    return n * (2 * n - 1) + 1
+
+
+def A128918(n):
+    return n * (n - 1) // 2 + 1 + (n - 1) * (n % 2)
+
+
+def A131179(n):
+    return n * (n + 1) // 2 + (1 - n) * (n % 2)
+
+
+def A008836(n):
+    return -1 if sum(factorint(n).values()) % 2 else 1
+
+
+def A354334(n):
+    return sum(Fraction(1, factorial(2 * k)) for k in range(n + 1)).numerator
+
+
+def A354335(n):
+    return sum(Fraction(1, factorial(2 * k)) for k in range(n + 1)).denominator
+
+
+def A354332(n):
+    return sum(
+        Fraction(-1 if k % 2 else 1, factorial(2 * k + 1)) for k in range(n + 1)
+    ).numerator
+
+
+def A354333(n):
+    return sum(
+        Fraction(-1 if k % 2 else 1, factorial(2 * k + 1)) for k in range(n + 1)
+    ).denominator
+
+
+def A354211(n):
+    return sum(Fraction(1, factorial(2 * k + 1)) for k in range(n + 1)).numerator
+
+
+def A354331(n):
+    return sum(Fraction(1, factorial(2 * k + 1)) for k in range(n + 1)).denominator
+
+
+def A352962_gen():  # generator of terms
+    a = 2
+    yield a
+    for n in count(2):
+        yield (a := min(n, a) if gcd(n, a) == 1 else n + 2)
+
+
+def A354354(n):
+    return int(not n % 6 & 3 ^ 1)
+
+
+def A120325(n):
+    return int(not (n + 3) % 6 & 3 ^ 1)
+
+
+def A232991(n):
+    return int(not (n + 1) % 6 & 3 ^ 1)
+
+
+def A000035(n):
+    return n & 1
+
+
+def A059841(n):
+    return 1 - (n & 1)
+
+
+def A000034(n):
+    return 1 + (n & 1)
+
+
+def A011655(n):
+    return int(bool(n % 3))
+
+
+def A088911(n):
+    return int(n % 6 < 3)
+
+
+def A010702(n):
+    return 3 + (n & 1)
+
+
+def A010718(n):
+    return 5 + 2 * (n & 1)
+
+
+def A010883(n):
+    return 1 + (n & 3)
+
+
+def A132429(n):
+    return 3 - 2 * (n & 3)
+
+
+def A010887(n):
+    return 1 + (n & 7)
+
+
+def A354404(n):
+    return sum(
+        Fraction(1 if k & 1 else -1, k * factorial(k)) for k in range(1, n + 1)
+    ).denominator
+
+
+def A354402(n):
+    return sum(
+        Fraction(1 if k & 1 else -1, k * factorial(k)) for k in range(1, n + 1)
+    ).numerator
+
+
+def A353545(n):
+    return sum(Fraction(1, k * factorial(k)) for k in range(1, n + 1)).numerator
+
+
+def A354401(n):
+    return sum(Fraction(1, k * factorial(k)) for k in range(1, n + 1)).denominator
+
+
+def A353848_gen(startvalue=1):  # generator of terms
+    return filter(
+        lambda n: n == 1
+        or (
+            sum((f := factorint(n)).values()) > 1
+            and len(set(primepi(p) * e for p, e in f.items())) <= 1
+        ),
+        count(max(startvalue, 1)),
+    )
+
+
+def A000179(n):
+    return (
+        1
+        if n == 0
+        else sum(
+            (-2 * n if k & 1 else 2 * n)
+            * comb(m := 2 * n - k, k)
+            * factorial(n - k)
+            // m
+            for k in range(n + 1)
+        )
+    )
+
+
+def A354432(n):
+    f = factorint(n)
+    return (
+        Fraction(
+            prod(p ** (e + 1) - 1 for p, e in f.items()), prod(p - 1 for p in f) * n
+        )
+        - sum(Fraction(1, p) for p in f)
+    ).numerator
+
+
+def A354433(n):
+    f = factorint(n)
+    return (
+        Fraction(
+            prod(p ** (e + 1) - 1 for p, e in f.items()), prod(p - 1 for p in f) * n
+        )
+        - sum(Fraction(1, p) for p in f)
+    ).denominator
+
+
+def A354437(n):
+    return sum(factorial(n) * (-k) ** (n - k) // factorial(k) for k in range(n + 1))
+
+
+def A354436(n):
+    return sum(factorial(n) * k ** (n - k) // factorial(k) for k in range(n + 1))
+
+
+def A354154_gen():  # generator of terms
+    aset, aqueue, c, b, f, p = {1}, deque([1]), 2, 1, True, 2
+    yield 0
+    while True:
+        for m in count(c):
+            if m not in aset and gcd(m, b) == 1:
+                yield p - m
+                p = nextprime(p)
+                aset.add(m)
+                aqueue.append(m)
+                if f:
+                    aqueue.popleft()
+                b = lcm(*aqueue)
+                f = not f
+                while c in aset:
+                    c += 1
+                break
+
+
+def A297330(n):
+    s = str(n)
+    return sum(abs(int(s[i]) - int(s[i + 1])) for i in range(len(s) - 1))
+
+
+def A354212_gen(startvalue=1):  # generator of terms
+    for n in count(max(startvalue, 1)):
+        s = str(n)
+        t = str(n * sum(abs(int(s[i]) - int(s[i + 1])) for i in range(len(s) - 1)))
+        if s != t and sorted(s) == sorted(t):
+            yield n
+
+
+def A118478(n):
+    return (
+        1
+        if n == 1
+        else int(
+            min(
+                min(
+                    crt((m, (k := primorial(n)) // m), (0, -1))[0],
+                    crt((k // m, m), (0, -1))[0],
+                )
+                for m in (
+                    prod(d)
+                    for l in range(1, n // 2 + 1)
+                    for d in combinations(sieve.primerange(prime(n) + 1), l)
+                )
+            )
+        )
+    )
+
+
+def A215021(n):
+    return (
+        1
+        if n == 1
+        else (
+            s := int(
+                min(
+                    min(
+                        crt((m, (k := primorial(n)) // m), (0, -1))[0],
+                        crt((k // m, m), (0, -1))[0],
+                    )
+                    for m in (
+                        prod(d)
+                        for l in range(1, n // 2 + 1)
+                        for d in combinations(sieve.primerange(prime(n) + 1), l)
+                    )
+                )
+            )
+        )
+        * (s + 1)
+        // k
+    )
+
+
+def A214089(n):
+    return (
+        3
+        if n == 1
+        else int(
+            min(
+                filter(
+                    isprime,
+                    (
+                        crt(tuple(sieve.primerange(prime(n) + 1)), t)[0]
+                        for t in product((1, -1), repeat=n)
+                    ),
+                )
+            )
+        )
+    )
+
+
+def A345988(n):
+    if n == 1:
+        return 2
+    plist = tuple(p**q for p, q in factorint(n).items())
+    return (
+        n * (n - 1)
+        if len(plist) == 1
+        else (
+            s := int(
+                min(
+                    min(crt((m, n // m), (0, -1))[0], crt((n // m, m), (0, -1))[0])
+                    for m in (
+                        prod(d)
+                        for l in range(1, len(plist) // 2 + 1)
+                        for d in combinations(plist, l)
+                    )
+                )
+            )
+        )
+        * (s + 1)
+    )
+
+
+def A215085(n):
+    return (
+        1
+        if n == 1
+        else (
+            int(
+                min(
+                    filter(
+                        isprime,
+                        (
+                            crt(tuple(sieve.primerange(prime(n) + 1)), t)[0]
+                            for t in product((1, -1), repeat=n)
+                        ),
+                    )
+                )
+            )
+            ** 2
+            - 1
+        )
+        // 4
+        // primorial(n)
+    )
+
+
+def A354160_gen():  # generator of terms
+    aset, aqueue, c, b, f = {1}, deque([1]), 2, 1, True
+    while True:
+        for m in count(c):
+            if m not in aset and gcd(m, b) == 1:
+                if len(fm := factorint(m)) == sum(fm.values()) == 2:
+                    yield m
+                aset.add(m)
+                aqueue.append(m)
+                if f:
+                    aqueue.popleft()
+                b = lcm(*aqueue)
+                f = not f
+                while c in aset:
+                    c += 1
+                break
+
+
+def A354161_gen():  # generator of terms
+    aset, aqueue, c, b, f, i = {1}, deque([1]), 2, 1, True, 1
+    while True:
+        for m in count(c):
+            if m not in aset and gcd(m, b) == 1:
+                i += 1
+                if len(fm := factorint(m)) == sum(fm.values()) == 2:
+                    yield i
+                aset.add(m)
+                aqueue.append(m)
+                if f:
+                    aqueue.popleft()
+                b = lcm(*aqueue)
+                f = not f
+                while c in aset:
+                    c += 1
+                break
+
+
+def A354162_gen():  # generator of terms
+    aset, aqueue, c, b, f = {1}, deque([1]), 2, 1, True
+    while True:
+        for m in count(c):
+            if m not in aset and gcd(m, b) == 1:
+                if m % 2 and len(fm := factorint(m)) == sum(fm.values()) == 2:
+                    yield m
+                aset.add(m)
+                aqueue.append(m)
+                if f:
+                    aqueue.popleft()
+                b = lcm(*aqueue)
+                f = not f
+                while c in aset:
+                    c += 1
+                break
+
+
+def A354163_gen():  # generator of terms
+    aset, aqueue, c, b, f, i = {1}, deque([1]), 2, 1, True, 1
+    while True:
+        for m in count(c):
+            if m not in aset and gcd(m, b) == 1:
+                i += 1
+                if m % 2 and len(fm := factorint(m)) == sum(fm.values()) == 2:
+                    yield i
+                aset.add(m)
+                aqueue.append(m)
+                if f:
+                    aqueue.popleft()
+                b = lcm(*aqueue)
+                f = not f
+                while c in aset:
+                    c += 1
+                break
+
+
+def A354443(n):
+    return fibonacci(pow(n, n, A001175(n))) % n
+
+
+def A060305(n):
+    x, p = (1, 1), prime(n)
+    for k in count(1):
+        if x == (0, 1):
+            return k
+        x = (x[1], (x[0] + x[1]) % p)
+
+
+def A345983_gen():  # generator of terms
+    c = 1
+    for n in count(2):
+        yield c
+        plist = tuple(p**q for p, q in factorint(n).items())
+        c += (
+            n - 1
+            if len(plist) == 1
+            else int(
+                min(
+                    min(crt((m, n // m), (0, -1))[0], crt((n // m, m), (0, -1))[0])
+                    for m in (
+                        prod(d)
+                        for l in range(1, len(plist) // 2 + 1)
+                        for d in combinations(plist, l)
+                    )
+                )
+            )
+        )
+
+
+def A345984_gen():  # generator of terms
+    c = 1
+    for n in count(4, 2):
+        yield c
+        plist = tuple(p**q for p, q in factorint(n).items())
+        c += (
+            n - 1
+            if len(plist) == 1
+            else int(
+                min(
+                    min(crt((m, n // m), (0, -1))[0], crt((n // m, m), (0, -1))[0])
+                    for m in (
+                        prod(d)
+                        for l in range(1, len(plist) // 2 + 1)
+                        for d in combinations(plist, l)
+                    )
+                )
+            )
+        )
+
+
+def A344875(n):
+    return prod(
+        (p ** (1 + e) if p == 2 else p**e) - 1 for p, e in factorint(n).items()
+    )
+
+
+def A345992(n):
+    if n == 1:
+        return 1
+    plist = tuple(p**q for p, q in factorint(n).items())
+    return (
+        1
+        if len(plist) == 1
+        else gcd(
+            n,
+            int(
+                min(
+                    min(crt((m, n // m), (0, -1))[0], crt((n // m, m), (0, -1))[0])
+                    for m in (
+                        prod(d)
+                        for l in range(1, len(plist) // 2 + 1)
+                        for d in combinations(plist, l)
+                    )
+                )
+            ),
+        )
+    )
+
+
+def A214149(n):
+    return (
+        7
+        if n == 1
+        else int(
+            min(
+                filter(
+                    lambda n: n > 3 and isprime(n),
+                    (
+                        crt(tuple(sieve.primerange(5, prime(n + 2) + 1)), t)[0]
+                        for t in product((3, -3), repeat=n)
+                    ),
+                )
+            )
+        )
+    )
+
+
+def A214150(n):
+    return (
+        19
+        if n == 1
+        else int(
+            min(
+                filter(
+                    lambda n: n > 5 and isprime(n),
+                    (
+                        crt(tuple(sieve.primerange(7, prime(n + 3) + 1)), t)[0]
+                        for t in product((5, -5), repeat=n)
+                    ),
+                )
+            )
+        )
+    )
+
+
+def A354463(n):
+    c, m = 0, 2**n
+    while m >= 5:
+        m //= 5
+        c += m
+    return c
+
+
+def A070824(n):
+    return 0 if n == 1 else divisor_count(n) - 2
+
+
+def A078709(n):
+    return n // divisor_count(n)
+
+
+def A353960_gen():  # generator of terms
+    adict, a = {}, 1
+    yield a
+    while True:
+        if a in adict:
+            adict[a] += 1
+            a *= adict[a]
+        else:
+            adict[a] = 1
+            a //= divisor_count(a)
+        yield a
+
+
+def A130290(n):
+    return prime(n) // 2
+
+
+def A005097(n):
+    return prime(n + 1) // 2
+
+
+def A354169_gen():  # generator of terms
+    aset, aqueue, b, f = {0, 1, 2}, deque([2]), 2, False
+    yield from (0, 1, 2)
+    while True:
+        for k in count(1):
+            m, j, j2, r, s = 0, 0, 1, b, k
+            while r > 0:
+                r, q = divmod(r, 2)
+                if not q:
+                    s, y = divmod(s, 2)
+                    m += y * j2
+                j += 1
+                j2 *= 2
+            if s > 0:
+                m += s * 2 ** b.bit_length()
+            if m not in aset:
+                yield m
+                aset.add(m)
+                aqueue.append(m)
+                if f:
+                    aqueue.popleft()
+                b = reduce(or_, aqueue)
+                f = not f
+                break
+
+
+def A354757_gen():  # generator of terms
+    aset, aqueue, b, f = {0, 1, 2}, deque([2]), 2, False
+    yield from (0, 0, 1)
+    while True:
+        for k in count(1):
+            m, j, j2, r, s = 0, 0, 1, b, k
+            while r > 0:
+                r, q = divmod(r, 2)
+                if not q:
+                    s, y = divmod(s, 2)
+                    m += y * j2
+                j += 1
+                j2 *= 2
+            if s > 0:
+                m += s * 2 ** b.bit_length()
+            if m not in aset:
+                yield sum(aqueue)
+                aset.add(m)
+                aqueue.append(m)
+                if f:
+                    aqueue.popleft()
+                b = reduce(or_, aqueue)
+                f = not f
+                break
+
+
+def A354680_gen():  # generator of terms
+    aset, aqueue, b, f = {0, 1, 2}, deque([2]), 2, False
+    yield 0
+    while True:
+        for k in count(1):
+            m, j, j2, r, s = 0, 0, 1, b, k
+            while r > 0:
+                r, q = divmod(r, 2)
+                if not q:
+                    s, y = divmod(s, 2)
+                    m += y * j2
+                j += 1
+                j2 *= 2
+            if s > 0:
+                m += s * 2 ** b.bit_length()
+            if m not in aset:
+                if bin(m).count("1") > 1:
+                    yield m
+                aset.add(m)
+                aqueue.append(m)
+                if f:
+                    aqueue.popleft()
+                b = reduce(or_, aqueue)
+                f = not f
+                break
+
+
+def A354798_gen():  # generator of terms
+    aset, aqueue, b, f, i = {0, 1, 2}, deque([2]), 2, False, 2
+    yield 0
+    while True:
+        for k in count(1):
+            m, j, j2, r, s = 0, 0, 1, b, k
+            while r > 0:
+                r, q = divmod(r, 2)
+                if not q:
+                    s, y = divmod(s, 2)
+                    m += y * j2
+                j += 1
+                j2 *= 2
+            if s > 0:
+                m += s * 2 ** b.bit_length()
+            if m not in aset:
+                i += 1
+                if bin(m).count("1") > 1:
+                    yield i
+                aset.add(m)
+                aqueue.append(m)
+                if f:
+                    aqueue.popleft()
+                b = reduce(or_, aqueue)
+                f = not f
+                break
+
+
+def A054055(n):
+    return max(int(d) for d in str(n))
+
+
+def A095815(n):
+    return n + max(int(d) for d in str(n))
+
+
+def A016116(n):
+    return 1 << n // 2
+
+
+def A007590(n):
+    return n**2 // 2
+
+
+def A000212(n):
+    return n**2 // 3
+
+
+def A008615(n):
+    return n // 2 - n // 3
+
+
+def A074148(n):
+    return n + n**2 // 2
+
+
+def A098844_gen():  # generator of terms
+    aqueue, f, b = deque([]), False, 1
+    yield 1
+    for i in count(2):
+        yield (a := i * b)
+        aqueue.append(a)
+        if f:
+            b = aqueue.popleft()
+        f = not f
+
+
+def A098844(n):
+    return n * prod(n // 2**k for k in range(1, n.bit_length() - 1))
+
+
+def A033485_gen():  # generator of terms
+    aqueue, f, b, a = deque([2]), True, 1, 2
+    yield from (1, 2)
+    while True:
+        a += b
+        yield a
+        aqueue.append(a)
+        if f:
+            b = aqueue.popleft()
+        f = not f
+
+
+def A040039_gen():  # generator of terms
+    aqueue, f, b, a = deque([2]), True, 1, 2
+    yield from (1, 1, 2, 2)
+    while True:
+        a += b
+        yield from (a, a)
+        aqueue.append(a)
+        if f:
+            b = aqueue.popleft()
+        f = not f
+
+
+def A178855_gen():  # generator of terms
+    aqueue, f, b, a = deque([2]), True, 1, 2
+    while True:
+        a += b
+        aqueue.append(a)
+        if f:
+            yield (a - 1) // 2
+            b = aqueue.popleft()
+        f = not f
+
+
+def A094451_gen():  # generator of terms
+    aqueue, f, b, a = deque([2]), True, 1, 2
+    yield from (1, 2)
+    while True:
+        a = (a + b) % 3
+        yield a
+        aqueue.append(a)
+        if f:
+            b = aqueue.popleft()
+        f = not f
+
+
+def A008794(n):
+    return (n // 2) ** 2
+
+
+@lru_cache(maxsize=None)
+def A320225(n):
+    return 1 if n == 1 else sum(A320225(d) * (n // d - 1) for d in range(1, n))
+
+
+def A320225_gen():  # generator of terms
+    alist, a = [1], 1
+    yield a
+    for n in count(2):
+        a = sum(alist[d - 1] * (n // d - 1) for d in range(1, n))
+        yield a
+        alist.append(a)
+
+
+def A347027_gen():  # generator of terms
+    aqueue, f, b, a = deque([3]), True, 1, 3
+    yield from (1, 3)
+    while True:
+        a += 2 * b
+        yield a
+        aqueue.append(a)
+        if f:
+            b = aqueue.popleft()
+        f = not f
+
+
+def A346912_gen():  # generator of terms
+    aqueue, f, b, a = deque([2]), True, 1, 2
+    yield from (1, 3, 7)
+    while True:
+        a += b
+        yield 4 * a - 1
+        aqueue.append(a)
+        if f:
+            b = aqueue.popleft()
+        f = not f
+
+
+def A102378_gen():  # generator of terms
+    aqueue, f, b, a = deque([2]), True, 1, 2
+    yield from (1, 3)
+    while True:
+        a += b
+        yield 2 * a - 1
+        aqueue.append(a)
+        if f:
+            b = aqueue.popleft()
+        f = not f
+
+
+def A062187_gen():  # generator of terms
+    aqueue, f, b, a = deque([1]), True, 0, 1
+    yield from (0, 1)
+    while True:
+        a -= b
+        yield a
+        aqueue.append(a)
+        if f:
+            b = aqueue.popleft()
+        f = not f
+
+
+def A062186_gen():  # generator of terms
+    aqueue, f, b, a = deque([0]), True, 1, 0
+    yield from (1, 0)
+    while True:
+        a -= b
+        yield a
+        aqueue.append(a)
+        if f:
+            b = aqueue.popleft()
+        f = not f
+
+
+def A062188_gen():  # generator of terms
+    aqueue, f, b, a = deque([1]), True, 0, 1
+    yield from (0, 1)
+    while True:
+        a += b
+        yield a
+        aqueue.append(a)
+        if f:
+            b = aqueue.popleft()
+        f = not f
+
+
+def A022907_gen():  # generator of terms
+    aqueue, f, b, a = deque([2]), True, 1, 2
+    yield from (0, 2, 5)
+    while True:
+        a += b
+        yield 3 * a - 1
+        aqueue.append(a)
+        if f:
+            b = aqueue.popleft()
+        f = not f
+
+
+def A022905_gen():  # generator of terms
+    aqueue, f, b, a = deque([2]), True, 1, 2
+    yield 1
+    while True:
+        a += b
+        aqueue.append(a)
+        if f:
+            yield (3 * a - 1) // 2
+            b = aqueue.popleft()
+        f = not f
+
+
+def A022908_gen():  # generator of terms
+    aqueue, f, b, a = deque([2]), True, 1, 2
+    yield from (0, 2)
+    while True:
+        a += b
+        aqueue.append(a)
+        if f:
+            yield (3 * a + 1) // 2
+            b = aqueue.popleft()
+        f = not f
+
+
+def A352717_gen():  # generator of terms
+    a, b = 1, 3
+    while True:
+        yield from (a,) * (b - a)
+        a, b = b, a + b
+
+
+def A130241_gen():  # generator of terms
+    a, b = 1, 3
+    for i in count(1):
+        yield from (i,) * (b - a)
+        a, b = b, a + b
+
+
+def A130247_gen():  # generator of terms
+    yield from (1, 0)
+    a, b = 3, 4
+    for i in count(2):
+        yield from (i,) * (b - a)
+        a, b = b, a + b
+
+
+def A130242_gen():  # generator of terms
+    yield from (0, 0, 0, 2)
+    a, b = 3, 4
+    for i in count(3):
+        yield from (i,) * (b - a)
+        a, b = b, a + b
+
+
+def A130245_gen():  # generator of terms
+    yield from (0, 1, 2)
+    a, b = 3, 4
+    for i in count(3):
+        yield from (i,) * (b - a)
+        a, b = b, a + b
+
+
+def A130249_gen():  # generator of terms
+    a, b = 0, 1
+    for i in count(0):
+        yield from (i,) * (b - a)
+        a, b = b, 2 * a + b
+
+
+def A130249(n):
+    return (3 * n + 1).bit_length() - 1
+
+
+def A276710_gen():  # generator of terms
+    p, q = 3, 5
+    while True:
+        for m in range(p + 1, q):
+            r = m ** (m - 1)
+            c = 1
+            for k in range(m + 1):
+                c = c * comb(m, k) % r
+            if c == 0:
+                yield m
+        p, q = q, nextprime(q)
+
+
+def A353010_gen():  # generator of terms
+    p, q = 3, 5
+    while True:
+        for m in range(p + 1, q):
+            r = m ** (m - 1)
+            c = 1
+            for k in range(m + 1):
+                c = c * comb(m, k) % r
+            if c == 0:
+                d, (e, f) = -m, divmod(prod(comb(m, k) for k in range(m + 1)), m)
+                while f == 0:
+                    d += 1
+                    e, f = divmod(e, m)
+                yield d
+        p, q = q, nextprime(q)
+
+
+def A351628_gen():  # generator of terms
+    a, b, c = 1, 3, 0
+    while True:
+        yield from (c + i * a for i in range(1, b - a + 1))
+        a, b, c = b, a + b, c + a * (b - a)
+
+
+def A001250_gen():  # generator of terms
+    yield from (1, 1)
+    blist = (0, 2)
+    while True:
+        yield (blist := tuple(accumulate(reversed(blist), initial=0)))[-1]
+
+
+def A348615_gen():  # generator of terms
+    yield from (0, 0)
+    blist, f = (0, 2), 1
+    for n in count(2):
+        f *= n
+        yield f - (blist := tuple(accumulate(reversed(blist), initial=0)))[-1]
+
+
+def A354862(n):
+    f = factorial(n)
+    return sum(
+        f * (a := factorial(n // d)) // (b := factorial(d))
+        + (f * b // a if d**2 < n else 0)
+        for d in divisors(n, generator=True)
+        if d**2 <= n
+    )
+
+
+def A354863(n):
+    f = factorial(n)
+    return sum(f * n // d // factorial(d) for d in divisors(n, generator=True))
+
+
+def A067742(n):
+    return sum(1 for d in divisors(n, generator=True) if n <= 2 * d**2 < 4 * n)
+
+
+def A319529_gen(startvalue=1):  # generator of terms
+    for k in count(max(1, startvalue + 1 - (startvalue & 1)), 2):
+        if any((k <= 2 * d**2 < 4 * k for d in divisors(k, generator=True))):
+            yield k
+
+
+def A132049_gen():  # generator of terms
+    yield 2
+    blist = (0, 1)
+    for n in count(2):
+        yield Fraction(
+            2 * n * blist[-1],
+            (blist := tuple(accumulate(reversed(blist), initial=0)))[-1],
+        ).numerator
+
+
+def A132050_gen():  # generator of terms
+    yield 1
+    blist = (0, 1)
+    for n in count(2):
+        yield Fraction(
+            2 * n * blist[-1],
+            (blist := tuple(accumulate(reversed(blist), initial=0)))[-1],
+        ).denominator
+
+
+def A000708_gen():  # generator of terms
+    yield -1
+    blist = (0, 1)
+    for n in count(2):
+        yield -2 * blist[-1] + (blist := tuple(accumulate(reversed(blist), initial=0)))[
+            -1
+        ]
+
+
+def A024255_gen():  # generator of terms
+    yield from (0, 1)
+    blist = (0, 1)
+    for n in count(2):
+        yield n * (
+            blist := tuple(
+                accumulate(
+                    reversed(tuple(accumulate(reversed(blist), initial=0))), initial=0
+                )
+            )
+        )[-1]
+
+
+def A141479_gen():  # generator of terms
+    yield from (2, 3)
+    blist = (0, 1)
+    for n in count(0):
+        yield (blist := tuple(accumulate(reversed(blist), initial=0)))[-1] + (
+            2,
+            1,
+            1,
+            2,
+        )[n & 3]
+
+
+def A000756_gen():  # generator of terms
+    yield from (1, 2)
+    blist = (1, 2)
+    while True:
+        yield (blist := tuple(accumulate(reversed(blist), initial=0)))[-1]
+
+
+def A180942_gen():  # generator of terms
+    blist = (0, 1)
+    for n in count(2):
+        blist = tuple(accumulate(reversed(blist), initial=0))
+        if (
+            n & 1
+            and (blist[-1] + (1 if (n - 1) // 2 & 1 else -1)) % n == 0
+            and not isprime(n)
+        ):
+            yield n
+
+
+def A166298_gen():  # generator of terms
+    yield 0
+    blist, c = (0, 1), 1
+    for n in count(1):
+        yield (blist := tuple(accumulate(reversed(blist), initial=0)))[-1] - c
+        c = c * (4 * n + 2) // (n + 2)
+
+
+def A338399_gen():  # generator of terms
+    blist, a, b = tuple(), 0, 1
+    while True:
+        yield (
+            blist := tuple(accumulate(reversed(blist), func=operator_sub, initial=a))
+        )[-1]
+        a, b = b, a + b
+
+
+def A338398_gen():  # generator of terms
+    blist = tuple()
+    for i in count(1):
+        yield (
+            blist := tuple(
+                accumulate(reversed(blist), func=operator_sub, initial=prime(i))
+            )
+        )[-1]
+
+
+def A338400_gen():  # generator of terms
+    blist = tuple()
+    for i in count(0):
+        yield (
+            blist := tuple(
+                accumulate(reversed(blist), func=operator_sub, initial=npartitions(i))
+            )
+        )[-1]
+
+
+def A102590_gen():  # generator of terms
+    blist, m = tuple(), 1
+    while True:
+        yield (
+            blist := tuple(accumulate(reversed(blist), func=operator_sub, initial=m))
+        )[-1]
+        m *= 2
+
+
+def A062162_gen():  # generator of terms
+    blist, m = tuple(), -1
+    while True:
+        yield (blist := tuple(accumulate(reversed(blist), initial=(m := -m))))[-1]
+
+
+def A097953_gen():  # generator of terms
+    blist, m = tuple(), 1
+    while True:
+        yield (blist := tuple(accumulate(reversed(blist), initial=(m + 1) // 2)))[-1]
+        m *= -2
+
+
+def A000667_gen():  # generator of terms
+    blist = tuple()
+    while True:
+        yield (blist := tuple(accumulate(reversed(blist), initial=1)))[-1]
+
+
+def A061531_gen():  # generator of terms
+    blist, m = tuple(), 1
+    for i in count(1):
+        yield (blist := tuple(accumulate(reversed(blist), initial=m)))[-1]
+        m = mobius(i)
+
+
+def A306822_gen():  # generator of terms
+    blist, m = tuple(), 1
+    for i in count(1):
+        yield (blist := tuple(accumulate(reversed(blist), initial=m)))[-1]
+        m = m * (4 * i - 2) // i
+
+
+def A307595_gen():  # generator of terms
+    blist = tuple()
+    for i in count(0):
+        yield (
+            blist := tuple(
+                accumulate(
+                    reversed(blist), initial=hyperexpand(hyper((1 - i, -i), [], 1))
+                )
+            )
+        )[-1]
+
+
+def A308521_gen():  # generator of terms
+    blist, m = tuple(), 1
+    for i in count(1):
+        yield (blist := tuple(accumulate(reversed(blist), initial=m)))[-1]
+        m *= 2 * i
+
+
+def A337445_gen():  # generator of terms
+    blist, m = tuple(), 1
+    for i in count(1):
+        yield (
+            blist := tuple(accumulate(reversed(blist), func=operator_sub, initial=m))
+        )[-1]
+        m *= i
+
+
+def A308681_gen():  # generator of terms
+    blist, m = tuple(), 1
+    for i in count(1):
+        yield (
+            blist := tuple(accumulate(reversed(blist), func=operator_sub, initial=m))
+        )[-1]
+        m *= 2 * i - 1
+
+
+def A337443_gen():  # generator of terms
+    blist = tuple()
+    for i in count(1):
+        yield (
+            blist := tuple(accumulate(reversed(blist), func=operator_sub, initial=i))
+        )[-1]
+
+
+def A337444_gen():  # generator of terms
+    blist = tuple()
+    for i in count(1, 2):
+        yield (
+            blist := tuple(accumulate(reversed(blist), func=operator_sub, initial=i))
+        )[-1]
+
+
+def A337446_gen():  # generator of terms
+    blist, c = tuple(), 1
+    for i in count(0):
+        yield (
+            blist := tuple(accumulate(reversed(blist), func=operator_sub, initial=c))
+        )[-1]
+        c = c * (4 * i + 2) // (i + 2)
+
+
+def A347071_gen():  # generator of terms
+    blist, m = tuple(), 1
+    for i in count(1):
+        yield (
+            blist := tuple(accumulate(reversed(blist), func=operator_sub, initial=m))
+        )[-1]
+        m = m * i + 1
+
+
+def A337447_gen():  # generator of terms
+    yield from (1, 0)
+    blist, alist = (1, 0), (1,)
+    while True:
+        yield (
+            blist := tuple(
+                accumulate(
+                    reversed(blist),
+                    func=operator_sub,
+                    initial=(alist := list(accumulate(alist, initial=alist[-1])))[-1],
+                )
+            )
+        )[-1]
+
+
+def A230960_gen():  # generator of terms
+    blist, m = tuple(), 1
+    for i in count(1):
+        yield (blist := tuple(accumulate(reversed(blist), initial=m)))[-1]
+        m *= i
+
+
+def A000738_gen():  # generator of terms
+    blist, a, b = tuple(), 0, 1
+    while True:
+        yield (blist := tuple(accumulate(reversed(blist), initial=a)))[-1]
+        a, b = b, a + b
+
+
+def A000747_gen():  # generator of terms
+    blist = tuple()
+    for i in count(1):
+        yield (blist := tuple(accumulate(reversed(blist), initial=prime(i))))[-1]
+
+
+def A000753_gen():  # generator of terms
+    blist, c = tuple(), 1
+    for i in count(0):
+        yield (blist := tuple(accumulate(reversed(blist), initial=c)))[-1]
+        c = c * (4 * i + 2) // (i + 2)
+
+
+def A231179_gen():  # generator of terms
+    blist = tuple()
+    for i in count(0):
+        yield (blist := tuple(accumulate(reversed(blist), initial=i)))[-1]
+
+
+def A000718_gen():  # generator of terms
+    yield 1
+    blist, c = (1,), 1
+    for i in count(2):
+        yield (blist := tuple(accumulate(reversed(blist), initial=c)))[-1]
+        c += i
+
+
+def A000674_gen():  # generator of terms
+    yield 1
+    blist = (1,)
+    while True:
+        yield (blist := tuple(accumulate(reversed(blist), initial=2)))[-1]
+
+
+def A101473_gen():  # generator of terms
+    blist, a, b = tuple(), 0, 1
+    while True:
+        yield (blist := tuple(accumulate(reversed(blist), initial=a)))[-1]
+        a, b = b, 2 * a + b
+
+
+def A101474_gen():  # generator of terms
+    blist, a, b = tuple(), 0, -1
+    while True:
+        yield (blist := tuple(accumulate(reversed(blist), initial=a)))[-1]
+        a, b = -b, -2 * a - b
+
+
+def A307594_gen():  # generator of terms
+    blist, a, b = tuple(), 1, -1
+    for n in count(1):
+        yield (blist := tuple(accumulate(reversed(blist), initial=a)))[-1]
+        a, b = a * n + b, -b
+
+
+def A306799_gen():  # generator of terms
+    blist, a = tuple(), 1
+    for i in count(1):
+        yield (blist := tuple(accumulate(reversed(blist), initial=a)))[-1]
+        a = 2 * a * i // (i + 1) if i & 1 else 2 * a
+
+
+def A307592_gen():  # generator of terms
+    blist = (1, 2)
+    yield from blist
+    for i in count(2):
+        yield (blist := tuple(accumulate(reversed(blist), initial=i ** (i - 2))))[-1]
+
+
+def A308520_gen():  # generator of terms
+    blist = tuple()
+    for i in count(0):
+        yield (
+            blist := tuple(accumulate(reversed(blist), initial=i * (i + 1) // 2 + 1))
+        )[-1]
+
+
+def A307593_gen():  # generator of terms
+    blist, m = tuple(), 1
+    for i in count(1):
+        yield (blist := tuple(accumulate(reversed(blist), initial=m)))[-1]
+        m = m * i + 1
+
+
+def A306880_gen():  # generator of terms
+    blist = tuple()
+    for i in count(0):
+        yield (blist := tuple(accumulate(reversed(blist), initial=i**i)))[-1]
+
+
+def A306881_gen():  # generator of terms
+    yield 0
+    blist = (0,)
+    for i in count(1):
+        yield (blist := tuple(accumulate(reversed(blist), initial=i ** (i - 1))))[-1]
+
+
+def A296792_gen():  # generator of terms
+    blist, m = tuple(), 1
+    for i in count(1, 2):
+        yield (blist := tuple(accumulate(reversed(blist), initial=m)))[-1]
+        m *= i
+
+
+def A347072_gen():  # generator of terms
+    blist, m = (0,), 1
+    yield from blist
+    for i in count(1):
+        yield (blist := tuple(accumulate(reversed(blist), initial=m)))[-1]
+        m *= i
+
+
+def A307879_gen():  # generator of terms
+    blist, m = tuple(), 1
+    yield from blist
+    while True:
+        yield (blist := tuple(accumulate(reversed(blist), initial=m)))[-1]
+        m *= 4
+
+
+def A307878_gen():  # generator of terms
+    blist, m = tuple(), 1
+    yield from blist
+    while True:
+        yield (blist := tuple(accumulate(reversed(blist), initial=m)))[-1]
+        m *= 3
+
+
+def A306836_gen():  # generator of terms
+    blist, a, b = (1,), 1, 1
+    yield from blist
+    for i in count(2):
+        yield (blist := tuple(accumulate(reversed(blist), initial=b)))[-1]
+        a, b = b, (b * (2 * i + 1) + (3 * i - 3) * a) // (i + 2)
+
+
+def A306832_gen():  # generator of terms
+    blist, a, b = (1,), 1, 1
+    yield from blist
+    for i in count(2):
+        yield (blist := tuple(accumulate(reversed(blist), initial=b)))[-1]
+        a, b = b, (b * (2 * i - 1) + (3 * i - 3) * a) // i
+
+
+def A231894_gen():  # generator of terms
+    blist, c = tuple(), 1
+    for i in count(1):
+        yield (blist := tuple(accumulate(reversed(blist), initial=c)))[-1]
+        c = c * (4 * i + 2) // (i + 2)
+
+
+def A000736_gen():  # generator of terms
+    yield 1
+    blist, c = (1,), 1
+    for i in count(0):
+        yield (blist := tuple(accumulate(reversed(blist), initial=c)))[-1]
+        c = c * (4 * i + 2) // (i + 2)
+
+
+def A230961_gen():  # generator of terms
+    blist, m = tuple(), 1
+    for i in count(1):
+        yield (blist := tuple(accumulate(reversed(blist), initial=(m := m * i))))[-1]
+
+
+def A231200_gen():  # generator of terms
+    blist = tuple()
+    for i in count(0, 2):
+        yield (blist := tuple(accumulate(reversed(blist), initial=i)))[-1]
+
+
+def A092090_gen():  # generator of terms
+    blist, a, b = tuple(), 1, 2
+    while True:
+        yield (blist := tuple(accumulate(reversed(blist), initial=a)))[-1]
+        a, b = b, a + b
+
+
+def A062161_gen():  # generator of terms
+    blist, m = tuple(), 1
+    while True:
+        yield (blist := tuple(accumulate(reversed(blist), initial=(m := 1 - m))))[-1]
+
+
+def A062272_gen():  # generator of terms
+    blist, m = tuple(), 0
+    while True:
+        yield (blist := tuple(accumulate(reversed(blist), initial=(m := 1 - m))))[-1]
+
+
+def A000744_gen():  # generator of terms
+    blist, a, b = tuple(), 1, 1
+    while True:
+        yield (blist := tuple(accumulate(reversed(blist), initial=a)))[-1]
+        a, b = b, a + b
+
+
+def A000660_gen():  # generator of terms
+    yield 1
+    blist = (1,)
+    for i in count(1):
+        yield (blist := tuple(accumulate(reversed(blist), initial=i)))[-1]
+
+
+def A000733_gen():  # generator of terms
+    yield 1
+    blist = (1,)
+    for i in count(0):
+        yield (blist := tuple(accumulate(reversed(blist), initial=npartitions(i))))[-1]
+
+
+def A000737_gen():  # generator of terms
+    blist = tuple()
+    for i in count(1):
+        yield (blist := tuple(accumulate(reversed(blist), initial=i)))[-1]
+
+
+def A000734_gen():  # generator of terms
+    yield 1
+    blist, m = (1,), 1
+    while True:
+        yield (blist := tuple(accumulate(reversed(blist), initial=m)))[-1]
+        m *= 2
+
+
+def A000751_gen():  # generator of terms
+    blist = tuple()
+    for i in count(0):
+        yield (blist := tuple(accumulate(reversed(blist), initial=npartitions(i))))[-1]
+
+
+def A000754_gen():  # generator of terms
+    blist = tuple()
+    for i in count(1, 2):
+        yield (blist := tuple(accumulate(reversed(blist), initial=i)))[-1]
+
+
+def A000732_gen():  # generator of terms
+    yield 1
+    blist = (1,)
+    for i in count(1):
+        yield (blist := tuple(accumulate(reversed(blist), initial=prime(i))))[-1]
+
+
+def A000697_gen():  # generator of terms
+    yield 1
+    blist, m = (1,), 1
+    for i in count(1):
+        yield (blist := tuple(accumulate(reversed(blist), initial=m)))[-1]
+        m += 2 * i + 1
+
+
+def A000752_gen():  # generator of terms
+    blist, m = tuple(), 1
+    while True:
+        yield (blist := tuple(accumulate(reversed(blist), initial=m)))[-1]
+        m *= 2
+
+
+def A230953_gen():  # generator of terms
+    blist = tuple()
+    for i in count(2):
+        yield (blist := tuple(accumulate(reversed(blist), initial=prime(i))))[-1]
+
+
+def A230954_gen():  # generator of terms
+    blist = tuple()
+    for i in count(1):
+        yield (blist := tuple(accumulate(reversed(blist), initial=composite(i))))[-1]
+
+
+def A230955_gen():  # generator of terms
+    yield 1
+    blist = (1,)
+    for i in count(1):
+        yield (blist := tuple(accumulate(reversed(blist), initial=composite(i))))[-1]
+
+
+def A000746_gen():  # generator of terms
+    blist, c = tuple(), 1
+    for i in count(2):
+        yield (blist := tuple(accumulate(reversed(blist), initial=c)))[-1]
+        c += i
+
+
+def A000745_gen():  # generator of terms
+    blist, c = tuple(), 1
+    for i in count(1):
+        yield (blist := tuple(accumulate(reversed(blist), initial=c)))[-1]
+        c += 2 * i + 1
+
+
+if sys.version_info >= (3, 10):
+
+    def A230952_gen():  # generator of terms
+        blist = tuple()
+        for i in count(0):
+            yield (blist := tuple(accumulate(reversed(blist), initial=i.bit_count())))[
+                -1
+            ]
+
+else:
+
+    def A230952_gen():  # generator of terms
+        blist = tuple()
+        for i in count(0):
+            yield (
+                blist := tuple(accumulate(reversed(blist), initial=bin(i).count("1")))
+            )[-1]
+
+
+def A000764_gen():  # generator of terms
+    blist, alist = (1, 2), (1,)
+    yield from blist
+    while True:
+        yield (
+            blist := tuple(
+                accumulate(
+                    reversed(blist),
+                    initial=(alist := list(accumulate(alist, initial=alist[-1])))[-1],
+                )
+            )
+        )[-1]
+
+
+def A182665(n):
+    if n == 1:
+        return 0
+    plist = tuple(p**q for p, q in factorint(n).items())
+    return (
+        1
+        if len(plist) == 1
+        else n
+        - int(
+            min(
+                min(crt((m, n // m), (0, -1))[0], crt((n // m, m), (0, -1))[0])
+                for m in (
+                    prod(d)
+                    for l in range(1, len(plist) // 2 + 1)
+                    for d in combinations(plist, l)
+                )
+            )
+        )
+    )
+
+
+def A354921_gen(startvalue=2):  # generator of terms
+    for n in count(max(startvalue, 2)):
+        plist = tuple(p**q for p, q in factorint(n).items())
+        if (
+            len(plist) == 1
+            or (
+                n
+                - int(
+                    min(
+                        min(crt((m, n // m), (0, -1))[0], crt((n // m, m), (0, -1))[0])
+                        for m in (
+                            prod(d)
+                            for l in range(1, len(plist) // 2 + 1)
+                            for d in combinations(plist, l)
+                        )
+                    )
+                )
+            )
+            & 1
+        ):
+            yield n
+
+
+def A354922_gen(startvalue=1):  # generator of terms
+    if startvalue <= 1:
+        yield 1
+    for n in count(max(startvalue, 2)):
+        plist = tuple(p**q for p, q in factorint(n).items())
+        if (
+            len(plist) != 1
+            and not (
+                n
+                - int(
+                    min(
+                        min(crt((m, n // m), (0, -1))[0], crt((n // m, m), (0, -1))[0])
+                        for m in (
+                            prod(d)
+                            for l in range(1, len(plist) // 2 + 1)
+                            for d in combinations(plist, l)
+                        )
+                    )
+                )
+            )
+            & 1
+        ):
+            yield n
+
+
+def A354920(n):
+    if n == 1:
+        return 0
+    plist = tuple(p**q for p, q in factorint(n).items())
+    return (
+        1
+        if len(plist) == 1
+        else (
+            n
+            - int(
+                min(
+                    min(crt((m, n // m), (0, -1))[0], crt((n // m, m), (0, -1))[0])
+                    for m in (
+                        prod(d)
+                        for l in range(1, len(plist) // 2 + 1)
+                        for d in combinations(plist, l)
+                    )
+                )
+            )
+        )
+        & 1
+    )
+
+
+def A354919_gen(startvalue=1):  # generator of terms
+    if startvalue <= 1:
+        yield 1
+    for n in count(max(startvalue, 2)):
+        plist = tuple(p**q for p, q in factorint(n).items())
+        if len(plist) == 1:
+            if (n - 1) & 1:
+                yield n
+        elif (
+            int(
+                min(
+                    min(crt((m, n // m), (0, -1))[0], crt((n // m, m), (0, -1))[0])
+                    for m in (
+                        prod(d)
+                        for l in range(1, len(plist) // 2 + 1)
+                        for d in combinations(plist, l)
+                    )
+                )
+            )
+            & 1
+        ):
+            yield n
+
+
+def A068311(n):
+    return (
+        sum(
+            (
+                factorial(n) * e // p
+                for p, e in sum(
+                    (Counter(factorint(m)) for m in range(2, n + 1)),
+                    start=Counter({2: 0}),
+                ).items()
+            )
+        )
+        if n > 1
+        else 0
+    )
+
+
+def A068327(n):
+    return sum((n ** (n + 1) * e // p for p, e in factorint(n).items())) if n > 1 else 0
+
+
+def A168386(n):
+    return (
+        sum(
+            (
+                factorial2(n) * e // p
+                for p, e in sum(
+                    (Counter(factorint(m)) for m in range(n, 1, -2)),
+                    start=Counter({2: 0}),
+                ).items()
+            )
+        )
+        if n > 1
+        else 0
+    )
+
+
+def A260620(n):
+    s = prod(factorial(i) for i in range(2, n + 1))
+    return (
+        sum(
+            s * e // p
+            for p, e in sum(
+                (
+                    (lambda x: Counter({k: x[k] * (n - m + 1) for k in x}))(
+                        factorint(m)
+                    )
+                    for m in range(2, n + 1)
+                ),
+                start=Counter({2: 0}),
+            ).items()
+        )
+        if n > 1
+        else 0
+    )
+
+
+def A260619(n):
+    s = prod(i**i for i in range(2, n + 1))
+    return (
+        sum(
+            s * e // p
+            for p, e in sum(
+                (
+                    (lambda x: Counter({k: x[k] * m for k in x}))(factorint(m))
+                    for m in range(2, n + 1)
+                ),
+                start=Counter({2: 0}),
+            ).items()
+        )
+        if n > 1
+        else 0
+    )
+
+
+def A068329(n):
+    f = fibonacci(n)
+    return sum((f * e // p for p, e in factorint(f).items())) if n > 2 else 0
