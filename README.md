@@ -1,7 +1,15 @@
 # oeis-sequences
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-Python functions to generate [The On-Line Encyclopedia of Integer Sequences](https://oeis.org/) (OEIS) sequences
+Python functions to generate [The On-Line Encyclopedia of Integer Sequences](https://oeis.org/) (OEIS) sequences.
+
+Python is the ideal language for this purpose because of the following reasons:
+
+1. Python is a general purpose programming language with support for file I/O and graphing.
+2. Arbitrary size integer format is standard in Python. This is important as many sequences in OEIS contain very large integers that will not fit in 64-bit integer formats.
+3. There exists extensive modules for combinatorics and number theory such as `math`, `itertools` and [`sympy`](https://www.sympy.org/en/index.html).
+
+Although Python can be slow as it is an interpreted language, this can be mitigated somewhat using tools such as [`pypy`](https://www.pypy.org/) and [`numba`](https://numba.pydata.org/).
 
 ## Requirements
 Requires `python` >= 3.8
@@ -13,7 +21,7 @@ Requires `python` >= 3.8
 After installation, `from oeis_sequences import OEISsequences` will import all the functions accessible via `OEISsequences.Axxxxxx`.
 Alternatively, invidividual functions can be imported as `from oeis_sequences.OEISsequences import Axxxxxx`.
 
-For each sequence, there are 3 different kinds of functions:
+For each sequence, there are (up to) 3 different kinds of functions:
 
 1. Functions named `Axxxxxx`: Axxxxxx(n) returns the *n*-th term of OEIS sequence Axxxxxx.
 
