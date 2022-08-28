@@ -449,6 +449,19 @@ def repeating_decimals_expr(f, digits_only=False):
         return s[:w] + "." + s[w:] + "[" + str(m * k * a // b - c * m).zfill(t) + "]"
 
 
+def repeating_decimals_period(f):
+    """returns period of repeating decimals of Fraction f"""
+    return (
+        0
+        if (
+            m := ((n := f.denominator) >> (~n & n - 1).bit_length())
+            // 5 ** multiplicity(5, n)
+        )
+        == 1
+        else n_order(10, m)
+    )
+
+
 def Boustrophedon_transform(x):
     """Boustrophedon transform of the iterable x
     returns generator"""
@@ -2343,10 +2356,6 @@ def A009994_gen():  # generator of terms
 
 def A004159(n):
     return sum(int(d) for d in str(n * n))
-
-
-def A001952(n):
-    return 2 * n + isqrt(2 * n**2)
 
 
 def A005917(n):
@@ -20054,15 +20063,15 @@ def A340466_gen():
 
 
 def A000201(n):
-    return (n + isqrt(5 * n**2)) // 2
+    return n + isqrt(5 * n**2) >> 1
 
 
 def A185381(n):
-    return fibonacci((n + isqrt(5 * n**2)) // 2)
+    return fibonacci(n + isqrt(5 * n**2) >> 1)
 
 
 def A350678(n):
-    return sum(fibonacci((i + isqrt(5 * i**2)) // 2) for i in range(n + 1))
+    return sum(fibonacci(i + isqrt(5 * i**2) >> 1) for i in range(n + 1))
 
 
 def A342118_gen():  # generator of terms
@@ -30911,3 +30920,647 @@ def A221205(n):
 
 def A022850(n):
     return (m := isqrt(k := 7 * n * n)) + int(k - m * (m + 1) >= 1)
+
+
+def A356150(n):
+    s, t = bin(n)[2:], bin(~n & ((1 << n.bit_length()) - 1))[2:]
+    return sum(m for m in range(1, n + 1) if (k := bin(m)[2:]) in s or k in t)
+
+
+def A143803(n):
+    return ((m := n << 1) - (k := isqrt(m)) - int(m >= k * (k + 1) + 1) << 1) - 1
+
+
+def A133280(n):
+    return (m := (n << 1) + 1) - ((isqrt(m + 1 << 2) + 1) >> 1)
+
+
+def A143804(n):
+    return 3 * ((m := n << 1) - (k := isqrt(m)) - int(m >= k * (k + 1) + 1)) - 2
+
+
+def A049039(n):
+    return (n << 1) - n.bit_length()
+
+
+def A050271(n):
+    a, b = divmod(n + 4, 3)
+    return a**2 + b - 2
+
+
+def A087278(n):
+    a, b = divmod(n, 3)
+    return a * (a + 2) + b
+
+
+def A087279(n):
+    return ((n + (b := n & 1)) ** 2 >> 2) + 1 - (b << 1)
+
+
+def A332935(n):
+    return sum(1 + isqrt(d**3 - 1) for d in divisors(n, generator=True))
+
+
+def A332934(n):
+    return sum(
+        (m := isqrt(r := d**3)) + int(r - m * (m + 1) >= 1)
+        for d in divisors(n, generator=True)
+    )
+
+
+def A332931(n):
+    return sum(
+        (m := isqrt(d)) + int(d - m * (m + 1) >= 1) for d in divisors(n, generator=True)
+    )
+
+
+def A053188(n):
+    return abs(((m := isqrt(n)) + int(n - m * (m + 1) >= 1)) ** 2 - n)
+
+
+def A351830(n):
+    return abs(
+        ((m := isqrt(r := n * (n * (2 * n + 3) + 1) // 6)) + int(r - m * (m + 1) >= 1))
+        ** 2
+        - r
+    )
+
+
+def A137803(n):
+    return (
+        (n >> 1) + (m := isqrt(r := n * n << 1)) + (n & 1) * int(r - m * (m + 1) >= 1)
+    )
+
+
+def A355160_gen(startvalue=0):  # generator of terms
+    return filter(
+        lambda n: int(((r := n**3) - (m := isqrt(r)) * (m + 1)) << 2 > 1),
+        count(max(startvalue, 0)),
+    )
+
+
+def A355159_gen(startvalue=0):  # generator of terms
+    return filter(
+        lambda n: int(((r := n**3) - (m := isqrt(r)) * (m + 1)) << 2 <= 1),
+        count(max(startvalue, 0)),
+    )
+
+
+def A006337(n):
+    return -isqrt(m := n * n << 1) + isqrt(m + (n << 2) + 2)
+
+
+def A022554(n):
+    return (m := isqrt(n)) * (m * (-(m << 1) - 3) + 6 * n + 5) // 6
+
+
+def A080763(n):
+    return 3 + isqrt(m := n * n << 1) - isqrt(m + (n << 2) + 2)
+
+
+def A003151(n):
+    return n + isqrt(n * n << 1)
+
+
+def A276862(n):
+    return 1 - isqrt(m := n * n << 1) + isqrt(m + (n << 2) + 2)
+
+
+def A159684(n):
+    return -isqrt(m := (n + 1) ** 2 << 1) + isqrt(m + (n << 2) + 6) - 1
+
+
+def A001952(n):
+    return (m := n << 1) + isqrt(n * m)
+
+
+def A348005(n):
+    return n + (m := isqrt(n)) + int(n - m * (m + 1) >= 1) << 1
+
+
+def A346276_gen():  # generator of terms
+    return filter(
+        lambda n: not (n % 7 or isprime(n)),
+        (
+            (10 ** (m + k) - 1) // 9 + 6 * 10**l
+            for m in count(1, 3)
+            for k in (0, 1)
+            for l in range(m + k)
+        ),
+    )
+
+
+def A309945(n):
+    return (m := n - 1) - isqrt(m << 1)
+
+
+def A326988(n):
+    return divisor_sigma(n) - (n ^ (n - 1))
+
+
+def A327306(n):
+    return isqrt(9 * (m := 6 * n * n)) - 3 * isqrt(m)
+
+
+def A338489(n):
+    return (f := factorial(n)) - ((m := isqrt(f << 1)) * (m + 1) >> 1)
+
+
+def A336911(n):
+    return n**3 + 1 if n & 1 else isqrt(n)
+
+
+def A329116(n):
+    return ((t := 1 + isqrt(n - 1)) * (t - 1) - n) * (-1 if t & 1 else 1) if n else 0
+
+
+def A255175(n):
+    return ((1 + (t := isqrt(n))) * t - n - 1) * (1 if t & 1 else -1)
+
+
+def A196199(n):
+    return n - (t := isqrt(n)) * (t + 1)
+
+
+def A022838(n):
+    return isqrt(3 * n * n)
+
+
+def A356086_gen():  # generator of terms
+    return filter(
+        lambda n: n == isqrt(3 * (isqrt(n**2 // 3) + 1) ** 2),
+        ((k := n << 1) + isqrt(k * n) for n in count(1)),
+    )
+
+
+def A346308_gen():  # generator of terms
+    return filter(
+        lambda n: n == isqrt(3 * (isqrt(n**2 // 3) + 1) ** 2),
+        (isqrt(n * n << 1) for n in count(1)),
+    )
+
+
+def A356088(n):
+    return isqrt(isqrt(3 * n * n) ** 2 << 1)
+
+
+def A356417_gen():  # generator of terms
+    yield 0
+    for l in count(1):
+        nlist = []
+        for m in range(1, isqrt(10**l) + 1):
+            if m % 10:
+                s = str(m**2)
+                nlist.append(int(s[::-1]) * 10 ** (l - len(s)))
+        yield from sorted(nlist)
+
+
+def A354383(n):
+    return int(26 * (a := fib2(n))[0] + 11 * a[1])
+
+
+def A283776_gen():  # generator of terms
+    return filter(lambda n: isqrt(3 * n * n) & 1, count(1))
+
+
+def A355324(n):
+    return fibonacci(n + 2) + lucas(n + 1) >> 1
+
+
+def A354294(n):
+    return (1 << n) - (1 << (n - 1 >> 1)) if n else 1
+
+
+def A356434(n):
+    return (
+        (r if (m := nextprime(k := 1 << n)) > (k << 1) - (r := prevprime(k)) else m)
+        if n > 1
+        else 2
+    )
+
+
+def A117387(n):
+    return (
+        (m if (m := nextprime(k := 1 << n)) < (k << 1) - (r := prevprime(k)) else r)
+        if n > 1
+        else 2
+    )
+
+
+def A226178_gen():  # generator of terms
+    return filter(
+        lambda n: isprime(r := ((k := 1 << n) << 1) - (m := nextprime(k)))
+        and nextprime(r) == m,
+        count(1),
+    )
+
+
+def A346232(n):
+    return isqrt(n**2 - 1 << 1) + 3
+
+
+def A348776(n):
+    return n + int(n < 3)
+
+
+def A340507(n):
+    return isqrt(m := n << 1) - (isqrt((m << 2) + 1) - 1 >> 1)
+
+
+def A339765(n):
+    return ((n + isqrt(5 * n**2)) & ~1) - 3 * n
+
+
+def A005206(n):
+    return (n + 1 + isqrt(5 * (n + 1) ** 2) >> 1) - n - 1
+
+
+def A189663(n):
+    return (n - 1 << 1) - (n - 1 + isqrt(5 * (n - 1) ** 2) >> 1)
+
+
+def A019446(n):
+    return (n + isqrt(5 * n**2) >> 1) - n + 1
+
+
+def A060144(n):
+    return (n << 1) - 1 - (n + isqrt(5 * n**2) >> 1) if n else 0
+
+
+def A342959(n):
+    return ((m := 10**n + 1) + isqrt(5 * m**2) >> 1) - m
+
+
+def A060143(n):
+    return (n + isqrt(5 * n**2) >> 1) - n
+
+
+def A192002(n):
+    return (
+        (n + isqrt(m := 5 * n**2) >> 1)
+        + (n + 1 + isqrt(m + 10 * n + 5) >> 1)
+        - 3 * n
+        - 1
+    )
+
+
+def A001950(n):
+    return (n + isqrt(5 * n**2) >> 1) + n
+
+
+def A342279(n):
+    return (m := (n << 1) + 1) + isqrt(5 * m**2) >> 1
+
+
+def A283234(n):
+    return ((n + isqrt(5 * n**2)) & -2) + (n << 1)
+
+
+def A283233(n):
+    return (n + isqrt(5 * n**2)) & -2
+
+
+def A109652(n):
+    return prime(n + isqrt(5 * n**2) >> 1)
+
+
+def A191403(n):
+    return (
+        (n + isqrt(m := 5 * n**2) >> 1) + (n + isqrt(m + (5 * (n + 1) << 2)) >> 1) + 1
+    )
+
+
+def A191404(n):
+    return (n + isqrt(m := 5 * n**2) >> 1) + (n + 3 + isqrt(m + 30 * n + 45) >> 1)
+
+
+def A316262_gen(startvalue=1):  # generator of terms
+    return filter(
+        lambda n: gcd(n, n + isqrt(5 * n**2) >> 1) > 1, count(max(startvalue, 1))
+    )
+
+
+def A014675(n):
+    return (n + 2 + isqrt(m := 5 * (n + 2) ** 2) >> 1) - (
+        n + 1 + isqrt(m - 10 * n - 15) >> 1
+    )
+
+
+def A085002(n):
+    return ((n + isqrt(5 * n**2)) & 2) >> 1
+
+
+def A191329(n):
+    return m if (m := ((n + isqrt(5 * n**2)) & 2) + (n & 1)) < 3 else 1
+
+
+def A188470(n):
+    return (
+        7 - (n + isqrt(5 * n**2) >> 1) + (n - 1 + isqrt(5 * (n - 5) ** 2) >> 1)
+        if n > 5
+        else int(n < 5)
+    )
+
+
+def A307294(n):
+    return ((m := (n >> 1) + 1) + isqrt(5 * m**2) >> 1) + (n & 1)
+
+
+def A307295(n):
+    return ((m := (n >> 1) + 1) + isqrt(5 * m**2) >> 1) + m + (n & 1)
+
+
+def A195170(n):
+    return (n << 2) - (n + isqrt(5 * n**2) >> 1)
+
+
+def A195171(n):
+    return (m := 5 * n) - (n + isqrt(n * m) >> 1)
+
+
+def A191402(n):
+    return (n + isqrt(m := 5 * n**2) >> 1) + (n + 1 + isqrt(m + 10 * n + 5) >> 1)
+
+
+def A190509(n):
+    return n + ((m := n + isqrt(5 * n**2)) & -2) + (m >> 1)
+
+
+def A185615_gen(startvalue=1):  # generator of terms
+    return filter(
+        lambda n: not (n + isqrt(5 * n**2) >> 1) % prod(primefactors(n)),
+        count(max(startvalue, 1)),
+    )
+
+
+def A151915(n):
+    return (n - 2 << 1) + ((m := n + isqrt(5 * n**2)) & -2) + (m >> 1)
+
+
+def A135963(n):
+    return comb(n + (n + isqrt(5 * n**2) >> 1), n)
+
+
+def A134862(n):
+    return 5 * (n + isqrt(5 * n**2) >> 1) + 3 * n
+
+
+def A134859(n):
+    return ((n + isqrt(5 * n**2) >> 1) - 1 << 1) + n
+
+
+def A134860(n):
+    return 3 * (n + isqrt(5 * n**2) >> 1) + (n << 1) - 1
+
+
+def A134861(n):
+    return 3 * ((n + isqrt(5 * n**2) >> 1) - 1) + (n << 1)
+
+
+def A134864(n):
+    return (m := 5 * n) + (((n + isqrt(n * m)) & -2) << 2)
+
+
+def A026356(n):
+    return (n + 1 + isqrt(5 * (n - 1) ** 2) >> 1) + n
+
+
+def A134863(n):
+    return 5 * (n + isqrt(5 * n**2) >> 1) + 3 * n - 1
+
+
+def A035337(n):
+    return 3 * (n + isqrt(5 * n**2) >> 1) + (n - 1 << 1)
+
+
+def A035338(n):
+    return 5 * (n + 1 + isqrt(5 * (n + 1) ** 2) >> 1) + 3 * n
+
+
+def A137708(n):
+    return ((m := n + 1 >> 1) + isqrt(5 * m**2) & -2) - (n & 1)
+
+
+def A051626(n):
+    return (
+        0
+        if (m := (n >> (~n & n - 1).bit_length()) // 5 ** multiplicity(5, n)) == 1
+        else n_order(10, m)
+    )
+
+
+def A003622(n):
+    return (n + isqrt(5 * n**2) >> 1) + n - 1
+
+
+def A356491(n):
+    return (
+        Matrix(n, n, [prime(abs(i - j) + 1) for i in range(n) for j in range(n)]).per()
+        if n
+        else 1
+    )
+
+
+def A356490(n):
+    return Matrix(
+        n, n, [prime(abs(i - j) + 1) for i in range(n) for j in range(n)]
+    ).det()
+
+
+def A075317(n):
+    return (n + isqrt(5 * n**2) & -2) - 1
+
+
+def A075318(n):
+    return (n + isqrt(5 * n**2) & -2) + (n << 1) - 1
+
+
+def A075319(n):
+    return (n + isqrt(5 * n**2) & -2) + n - 1 << 1
+
+
+def A075320(n):
+    return (m := (n + isqrt(5 * n**2) & -2) - 1) * ((n << 1) + m)
+
+
+def A095281_gen():  # generator of terms
+    return filter(isprime, ((n + isqrt(5 * n**2) >> 1) + n for n in count(1)))
+
+
+def A095280_gen():  # generator of terms
+    return filter(isprime, ((n + isqrt(5 * n**2) >> 1) for n in count(1)))
+
+
+def A095907_gen():  # generator of terms
+    k = 1
+    for n in count(3):
+        m = n + isqrt(5 * n**2) >> 1
+        for _ in range(m - k - 1):
+            yield 0
+        yield 1
+        k = m
+
+
+def A054770(n):
+    return (n + isqrt(5 * n**2) >> 1) + (n << 1) - 1
+
+
+def A035336(n):
+    return (n + isqrt(5 * n**2) & -2) + n - 1
+
+
+def A026351(n):
+    return (n + isqrt(5 * n**2) >> 1) + 1
+
+
+def A004919(n):
+    return (3 * n + isqrt(45 * n**2) >> 1) + (n << 1)
+
+
+def A004976(n):
+    return (isqrt(20 * n**2) >> 1) + (n << 1)
+
+
+def A004958(n):
+    return (isqrt(20 * n**2) >> 1) + (n << 1) + 1 if n else 0
+
+
+def A078796(n):
+    return (n + (m := isqrt(5 * n**2)) & -2) - m + 1
+
+
+def A078588(n):
+    return (n + isqrt(5 * n**2)) & 1
+
+
+def A089809(n):
+    return ((n + isqrt(5 * n**2)) & 1) ^ 1
+
+
+def A026274(n):
+    return (n + 1 + isqrt(5 * (n + 1) ** 2) >> 1) + n - 1
+
+
+def A005614(n):
+    return (n + isqrt(m := 5 * (n + 2) ** 2) >> 1) - (
+        n + 1 + isqrt(m - 10 * n - 15) >> 1
+    )
+
+
+def A022342(n):
+    return (n + isqrt(5 * n**2) >> 1) - 1
+
+
+def A356274(n):
+    return int(bin(n)[2:], n + 1)
+
+
+def A355161_gen():  # generator of terms
+    return filter(
+        lambda n: ((~(m := n - prevprime(n)) + 1) & m) - m, (prime(n) for n in count(2))
+    )
+
+
+def A356247(n):
+    k = -1
+    for i in range(n - 1, 1, -1):
+        k = i - Fraction(i + 1, k)
+    return abs(k.numerator)
+
+
+def A054084(n):
+    return ((m := n + 1 >> 1) + isqrt(5 * m**2) >> 1) + m * (n & 1)
+
+
+def A047924(n):
+    return ((m := (n + isqrt(5 * n**2) >> 1) + 1) + isqrt(5 * m**2) >> 1) + m + 1
+
+
+def A004641(n):
+    return (
+        [1, 0, 0, 1, 0, 1, 0, 1][n - 1]
+        if n < 9
+        else -1 - isqrt(m := (n - 9) * (n - 9) << 1) + isqrt(m + (n - 9 << 2) + 2)
+    )
+
+
+def A001030(n):
+    return (
+        [2, 1, 1, 2, 1, 2, 1, 2][n - 1]
+        if n < 9
+        else -isqrt(m := (n - 9) * (n - 9) << 1) + isqrt(m + (n - 9 << 2) + 2)
+    )
+
+
+def A007066(n):
+    return (n + 1 + isqrt(5 * (n - 1) ** 2) >> 1) + n if n > 1 else 1
+
+
+def A001966(n):
+    return ((m := (n << 1) + 1) + isqrt(5 * m**2) >> 1) + m
+
+
+def A001965(n):
+    return ((m := (n << 1) + 1) + isqrt(5 * m**2) >> 1) - m
+
+
+def A001468(n):
+    return (n + 1 + isqrt(m := 5 * (n + 1) ** 2) >> 1) - (
+        n + isqrt(m - 10 * n - 5) >> 1
+    )
+
+
+def A003231(n):
+    return (n + isqrt(5 * n**2) >> 1) + (n << 1)
+
+
+def A003849(n):
+    return (
+        2
+        - (n + 2 + isqrt(m := 5 * (n + 2) ** 2) >> 1)
+        + (n + 1 + isqrt(m - 10 * n - 15) >> 1)
+    )
+
+
+def A003623(n):
+    return (n + isqrt(5 * n**2) & -2) + n
+
+
+def A014677(n):
+    return (
+        (n + isqrt(m := 5 * (n + 2) ** 2) >> 1)
+        - (n + 1 + isqrt(m - 10 * n - 15) & -2)
+        + (n + isqrt(m - 20 * n - 20) >> 1)
+        + 1
+    )
+
+
+def A026352(n):
+    return (n + isqrt(5 * n**2) >> 1) + n + 1
+
+
+def A050140(n):
+    return (n + isqrt(5 * n**2) & -2) - n
+
+
+def A026355(n):
+    return (n - 1 + isqrt(5 * (n - 1) ** 2) >> 1) + 2 if n else 1
+
+
+def A007067(n):
+    return (isqrt(5 * n**2 << 2) >> 1) + n + 1 >> 1
+
+
+def A120613(n):
+    return (m := (n + isqrt(5 * n**2) >> 1) - n) + isqrt(5 * m**2) >> 1
+
+
+def A003842(n):
+    return (
+        n
+        + 2
+        - (
+            (m := (n + 2 + isqrt(5 * (n + 2) ** 2) >> 1) - n - 2) + isqrt(5 * m**2)
+            >> 1
+        )
+    )

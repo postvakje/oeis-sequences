@@ -6,7 +6,7 @@ Python functions to generate [The On-Line Encyclopedia of Integer Sequences](htt
 Python is the ideal language for this purpose because of the following reasons:
 
 1. Python is a general purpose programming language with support for file I/O and graphing.
-2. Arbitrary size integer format is standard in Python. This is important as many sequences in OEIS contain very large integers that will not fit in 64-bit integer formats.
+2. Arbitrary size integer format is standard in Python. This is important as many sequences in OEIS contain very large integers that will not fit in 64-bit integer formats. This allows the implemented functions to generate terms for arbitrary large `n` and they do not depend on floating point precision. For higher performance, one can use [`gmpy2`](https://pypi.org/project/gmpy2/).
 3. There exists extensive modules for combinatorics and number theory such as `math`, `itertools` and [`sympy`](https://www.sympy.org/en/index.html).
 
 Although Python can be slow as it is an interpreted language, this can be mitigated somewhat using tools such as [`pypy`](https://www.pypy.org/) and [`numba`](https://numba.pydata.org/).
