@@ -108,7 +108,6 @@ from sympy import (
     n_order,
     primorial,
     sqrt,
-    bernoulli,
     ff,
     rf,
     sin,
@@ -51805,3 +51804,11 @@ def A028948_gen():  # generator of terms
     while True:
         yield x
         x = (y := (x * 4001 + 1200) // 1000) >> (~y & y - 1).bit_length()
+
+
+def A368540(n):
+    return prod(p**e for p, e in factorint(n).items() if not e or (e & -e) ^ e)
+
+
+def A368544(n):
+    return prod(e + 1 for p, e in factorint(n).items() if is_square(p - 1))
