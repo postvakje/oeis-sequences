@@ -8,7 +8,7 @@ with open("requirements.txt", "r") as fh:
 setup(
    name='OEISsequences',
    python_requires='>= 3.8',
-   version='0.2.3.4',
+   version='0.2.3.5',
    author='Chai Wah Wu',
    author_email='cwwuieee@gmail.com',
    packages=find_packages(),
