@@ -57547,4 +57547,4 @@ def A358685(n):
 
 
 def A057716(n):
-    return n - 1 + (n - 1 + (n - 1).bit_length()).bit_length()
+    return n + (n + (n).bit_length()).bit_length()
