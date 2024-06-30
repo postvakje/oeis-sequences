@@ -57544,3 +57544,7 @@ def A358685(n):
             if isprime(10 * int("".join(p)) + q)
         )
     )
+
+
+def A057716(n):
+    return n + (n + (n).bit_length()).bit_length()
