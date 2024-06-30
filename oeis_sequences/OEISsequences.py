@@ -194,7 +194,12 @@ from sympy.ntheory.residue_ntheory import (
 )
 from sympy.combinatorics.subsets import Subset
 from sympy.solvers.diophantine import diophantine
-from sympy.solvers.diophantine.diophantine import diop_quadratic, diop_DN, cornacchia
+from sympy.solvers.diophantine.diophantine import (
+    diop_quadratic,
+    diop_DN,
+    cornacchia,
+    power_representation,
+)
 from sympy.abc import x as symbolx, y as symboly
 from gmpy2 import (
     mpz,
@@ -266,6 +271,18 @@ def is_cubefree_string(s):
             if s[i : i + 2 * j] == s[i + j : i + 3 * j]:
                 return False
     return True
+
+
+def palindrome(n, b=10):
+    """n-th palindrome in base b, where 2 <= b <= 62"""
+    if n == 1:
+        return 0
+    y = b * (x := b ** integer_log(n >> 1, b)[0])
+    return int(
+        (c := n - x) * x + mpz(gmpy2digits(c, b)[-2::-1] or "0", b)
+        if n < x + y
+        else (c := n - y) * y + mpz(gmpy2digits(c, b)[::-1] or "0", b)
+    )
 
 
 def pal10_gen():
@@ -3615,7 +3632,7 @@ def A176774(n):
 
 def A002131(n):
     return prod(
-        p**e if p == 2 else (p ** (e + 1) - 1) // (p - 1)
+        (p ** (e + 1) - 1) // (p - 1) if p & 1 else 1 << e
         for p, e in factorint(n).items()
     )
 
@@ -20258,7 +20275,7 @@ def A008277_T(n, k):
 
 
 def A000396_gen():
-    return filter(lambda n: divisor_sigma(n) == 2 * n, count(1))
+    return filter(lambda n: divisor_sigma(n) == n << 1, count(1))
 
 
 def A010060_gen():  # generator of terms
@@ -23074,10 +23091,6 @@ def A352716_gen():  # generator of terms
             i += 1
 
 
-def A000037(n):
-    return n + isqrt(n + isqrt(n))
-
-
 def A000037_gen(startvalue=1):  # generator of terms
     k = isqrt(max(startvalue, 1))
     for m in count(k):
@@ -23090,12 +23103,6 @@ def A000217(n):
 
 def A000196(n):
     return isqrt(n)
-
-
-def A086849(n):
-    return (m := n + isqrt(n + isqrt(n))) * (m + 1) // 2 - (k := isqrt(m)) * (k + 1) * (
-        2 * k + 1
-    ) // 6
 
 
 def A086849_gen():  # generator of terms
@@ -23727,6 +23734,8 @@ def A004018(n):
             for p, e in factorint(n).items()
         )
         << 2
+        if n
+        else 1
     )
 
 
@@ -28050,13 +28059,9 @@ def A180590_gen():  # generator of terms
 
 def A000118(n):
     return (
-        1
-        if n == 0
-        else (
-            8 * divisor_sigma(n)
-            if n % 2
-            else 24 * divisor_sigma(int(bin(n)[2:].rstrip("0"), 2))
-        )
+        divisor_sigma(n) << 3
+        if n & 1
+        else 3 * divisor_sigma(n >> (~n & n - 1).bit_length()) << 3 if n else 1
     )
 
 
@@ -57547,4 +57552,1271 @@ def A358685(n):
 
 
 def A057716(n):
-    return n + (n + (n).bit_length()).bit_length()
+    return n + (n + n.bit_length()).bit_length()
+
+
+def A006995(n):
+    if n == 1:
+        return 0
+    a = 1 << (l := n.bit_length() - 2)
+    m = a | (n & a - 1)
+    return (
+        (m << l + 1) + int(bin(m)[:1:-1] or "0", 2)
+        if a & n
+        else (m << l) + int(bin(m)[-2:1:-1] or "0", 2)
+    )
+
+
+def A057148(n):
+    if n == 1:
+        return 0
+    a = 1 << n.bit_length() - 2
+    s = bin(a | (n & a - 1))[2:]
+    return int(s + (s[::-1] if a & n else s[-2::-1]))
+
+
+def A176923(n):
+    if n == 1:
+        return 0
+    a = 1 << n.bit_length() - 2
+    s = bin(a | (n & a - 1))[2:]
+    return int(s + (s[::-1] if a & n else s[-2::-1])) ** 2
+
+
+def A372403(n):
+    m, p = (1 << n) - 1, 2
+    q = isqrt(m)
+    r = m - sum(mobius(k) * (m // k**2) for k in range(1, q + 1))
+    while p <= q:
+        r -= integer_log(m, p)[0] - 1
+        p = nextprime(p)
+    return r
+
+
+def A164126(n):
+    if n == 1:
+        return 1
+    m = (a := 1 << (l := n.bit_length() - 2)) | (n & a - 1)
+    k = (
+        (m << l + 1) + int(bin(m)[:1:-1] or "0", 2)
+        if a & n
+        else (m << l) + int(bin(m)[-2:1:-1] or "0", 2)
+    )
+    m = (a := 1 << (l := (n + 1).bit_length() - 2)) | (n + 1 & a - 1)
+    return (
+        (m << l + 1) + int(bin(m)[:1:-1] or "0", 2)
+        if a & n + 1
+        else (m << l) + int(bin(m)[-2:1:-1] or "0", 2)
+    ) - k
+
+
+def A102460(n):
+    return int(is_square(m := 5 * (n**2 - 4)) or is_square(m + 40))
+
+
+def A262065(n):
+    if n == 1:
+        return 0
+    y = 60 * (x := 60 ** integer_log(n >> 1, 60)[0])
+    return int(
+        (c := n - x) * x + mpz(gmpy2digits(c, 60)[-2::-1] or "0", 60)
+        if n < x + y
+        else (c := n - y) * y + mpz(gmpy2digits(c, 60)[::-1] or "0", 60)
+    )
+
+
+def A029803(n):
+    if n == 1:
+        return 0
+    y = (x := 1 << (m := n.bit_length() - 2) - m % 3) << 3
+    return (
+        (c := n - x) * x + int(oct(c)[-2:1:-1] or "0", 8)
+        if n < x + y
+        else (c := n - y) * y + int(oct(c)[:1:-1] or "0", 8)
+    )
+
+
+def A014190(n):
+    if n == 1:
+        return 0
+    y = 3 * (x := 3 ** integer_log(n >> 1, 3)[0])
+    return int(
+        (c := n - x) * x + int(gmpy2digits(c, 3)[-2::-1] or "0", 3)
+        if n < x + y
+        else (c := n - y) * y + int(gmpy2digits(c, 3)[::-1] or "0", 3)
+    )
+
+
+def A029952(n):
+    if n == 1:
+        return 0
+    y = 5 * (x := 5 ** integer_log(n >> 1, 5)[0])
+    return int(
+        (c := n - x) * x + int(gmpy2digits(c, 5)[-2::-1] or "0", 5)
+        if n < x + y
+        else (c := n - y) * y + int(gmpy2digits(c, 5)[::-1] or "0", 5)
+    )
+
+
+def A084019(n):
+    if n == 1:
+        return 9
+    y = 10 * (x := 10 ** (len(str(n >> 1)) - 1))
+    if n < x + y:
+        c = n - x
+        c = 10 ** len(str(c)) - 1 - c
+        return c * x + int(str(c)[-2::-1] or 0)
+    else:
+        c = n - y
+        c = 10 ** len(str(c)) - 1 - c
+        return c * y + int(str(c)[::-1] or 0)
+
+
+def A099280(n):
+    if n == 0:
+        return 1
+    m = 1 << n - 1
+    k = (m << 1) + 1
+    y = 10 * (x := 10 ** (len(str(m)) - 1))
+    return (
+        (c := k - x) * x + int(str(c)[-2::-1] or 0)
+        if k < x + y
+        else (c := k - y) * y + int(str(c)[::-1] or 0)
+    )
+
+
+def A043269(n):
+    if n == 1:
+        return 0
+    y = 10 * (x := 10 ** (len(str(n >> 1)) - 1))
+    return (
+        int((s := str(n - x))[-1]) + (sum(int(d) for d in s[:-1]) << 1)
+        if n < x + y
+        else sum(map(int, str(n - y))) << 1
+    )
+
+
+if sys.version_info >= (3, 10):
+
+    def A043261(n):
+        if n == 1:
+            return 0
+        a = 1 << n.bit_length() - 2
+        m = a | (n & a - 1)
+        return (m.bit_count() << 1) - (0 if a & n else m & 1)
+
+else:
+
+    def A043261(n):
+        if n == 1:
+            return 0
+        a = 1 << n.bit_length() - 2
+        m = a | (n & a - 1)
+        return (bin(m).count("1") << 1) - (0 if a & n else m & 1)
+
+
+def A029730(n):
+    if n == 1:
+        return 0
+    y = (x := 1 << (n.bit_length() - 2 & -4)) << 4
+    return (
+        (c := n - x) * x + int(hex(c)[-2:1:-1] or "0", 16)
+        if n < x + y
+        else (c := n - y) * y + int(hex(c)[:1:-1] or "0", 16)
+    )
+
+
+def A029955(n):
+    if n == 1:
+        return 0
+    y = 9 * (x := 9 ** integer_log(n >> 1, 9)[0])
+    return int(
+        (c := n - x) * x + int(gmpy2digits(c, 9)[-2::-1] or "0", 9)
+        if n < x + y
+        else (c := n - y) * y + int(gmpy2digits(c, 9)[::-1] or "0", 9)
+    )
+
+
+def A002113(n):
+    return palindrome(n)
+
+
+def A076890(n):
+    if n == 1:
+        return 0
+    y = 10 * (x := 10 ** (len(str(n + 1 >> 1)) - 1))
+    return primepi(
+        (c := n + 1 - x) * x + int(str(c)[-2::-1] or 0)
+        if n < x + y
+        else (c := n + 1 - y) * y + int(str(c)[::-1] or 0)
+    )
+
+
+def A091582(n):
+    if n == 1:
+        return 1
+    y = 10 * (x := 10 ** (len(str(n >> 1)) - 1))
+    return npartitions(
+        (c := n - x) * x + int(str(c)[-2::-1] or 0)
+        if n < x + y
+        else (c := n - y) * y + int(str(c)[::-1] or 0)
+    )
+
+
+def A112875(n):
+    if n == 1:
+        return 0
+    y = 10 * (x := 10 ** (len(str(n >> 1)) - 1))
+    return (
+        int((s := str(n - x))[-1]) * prod(int(d) for d in s[:-1]) ** 2
+        if n < x + y
+        else prod(map(int, str(n - y))) ** 2
+    )
+
+
+def A014192(n):
+    if n == 1:
+        return 0
+    y = (x := 1 << (n.bit_length() - 2 & -2)) << 2
+    return (
+        (c := n - x) * x + int(gmpy2digits(c, 4)[-2::-1] or "0", 4)
+        if n < x + y
+        else (c := n - y) * y + int(gmpy2digits(c, 4)[::-1] or "0", 4)
+    )
+
+
+def A029953(n):
+    if n == 1:
+        return 0
+    y = 6 * (x := 6 ** integer_log(n >> 1, 6)[0])
+    return int(
+        (c := n - x) * x + int(gmpy2digits(c, 6)[-2::-1] or "0", 6)
+        if n < x + y
+        else (c := n - y) * y + int(gmpy2digits(c, 6)[::-1] or "0", 6)
+    )
+
+
+def A029954(n):
+    if n == 1:
+        return 0
+    y = 7 * (x := 7 ** integer_log(n >> 1, 7)[0])
+    return int(
+        (c := n - x) * x + int(gmpy2digits(c, 7)[-2::-1] or "0", 7)
+        if n < x + y
+        else (c := n - y) * y + int(gmpy2digits(c, 7)[::-1] or "0", 7)
+    )
+
+
+def A029956(n):
+    if n == 1:
+        return 0
+    y = 11 * (x := 11 ** integer_log(n >> 1, 11)[0])
+    return int(
+        (c := n - x) * x + int(gmpy2digits(c, 11)[-2::-1] or "0", 11)
+        if n < x + y
+        else (c := n - y) * y + int(gmpy2digits(c, 11)[::-1] or "0", 11)
+    )
+
+
+def A029957(n):
+    if n == 1:
+        return 0
+    y = 12 * (x := 12 ** integer_log(n >> 1, 12)[0])
+    return int(
+        (c := n - x) * x + int(gmpy2digits(c, 12)[-2::-1] or "0", 12)
+        if n < x + y
+        else (c := n - y) * y + int(gmpy2digits(c, 12)[::-1] or "0", 12)
+    )
+
+
+def A029958(n):
+    if n == 1:
+        return 0
+    y = 13 * (x := 13 ** integer_log(n >> 1, 13)[0])
+    return int(
+        (c := n - x) * x + int(gmpy2digits(c, 13)[-2::-1] or "0", 13)
+        if n < x + y
+        else (c := n - y) * y + int(gmpy2digits(c, 13)[::-1] or "0", 13)
+    )
+
+
+def A029959(n):
+    if n == 1:
+        return 0
+    y = 14 * (x := 14 ** integer_log(n >> 1, 14)[0])
+    return int(
+        (c := n - x) * x + int(gmpy2digits(c, 14)[-2::-1] or "0", 14)
+        if n < x + y
+        else (c := n - y) * y + int(gmpy2digits(c, 14)[::-1] or "0", 14)
+    )
+
+
+def A029960(n):
+    if n == 1:
+        return 0
+    y = 15 * (x := 15 ** integer_log(n >> 1, 15)[0])
+    return int(
+        (c := n - x) * x + int(gmpy2digits(c, 15)[-2::-1] or "0", 15)
+        if n < x + y
+        else (c := n - y) * y + int(gmpy2digits(c, 15)[::-1] or "0", 15)
+    )
+
+
+def A118594(n):
+    if n == 1:
+        return 0
+    y = 3 * (x := 3 ** integer_log(n >> 1, 3)[0])
+    return int(
+        (s := gmpy2digits(n - x, 3)) + s[-2::-1]
+        if n < x + y
+        else (s := gmpy2digits(n - y, 3)) + s[::-1]
+    )
+
+
+def A118595(n):
+    if n == 1:
+        return 0
+    y = (x := 1 << (n.bit_length() - 2 & -2)) << 2
+    return int(
+        (s := gmpy2digits(n - x, 4)) + s[-2::-1]
+        if n < x + y
+        else (s := gmpy2digits(n - y, 4)) + s[::-1]
+    )
+
+
+def A118596(n):
+    if n == 1:
+        return 0
+    y = 5 * (x := 5 ** integer_log(n >> 1, 5)[0])
+    return int(
+        (s := gmpy2digits(n - x, 5)) + s[-2::-1]
+        if n < x + y
+        else (s := gmpy2digits(n - y, 5)) + s[::-1]
+    )
+
+
+def A118597(n):
+    if n == 1:
+        return 0
+    y = 6 * (x := 6 ** integer_log(n >> 1, 6)[0])
+    return int(
+        (s := gmpy2digits(n - x, 6)) + s[-2::-1]
+        if n < x + y
+        else (s := gmpy2digits(n - y, 6)) + s[::-1]
+    )
+
+
+def A118598(n):
+    if n == 1:
+        return 0
+    y = 7 * (x := 7 ** integer_log(n >> 1, 7)[0])
+    return int(
+        (s := gmpy2digits(n - x, 7)) + s[-2::-1]
+        if n < x + y
+        else (s := gmpy2digits(n - y, 7)) + s[::-1]
+    )
+
+
+def A118599(n):
+    if n == 1:
+        return 0
+    y = (x := 1 << (m := n.bit_length() - 2) - m % 3) << 3
+    return int(
+        (s := oct(n - x)[2:]) + s[-2::-1]
+        if n < x + y
+        else (s := oct(n - y)[2:]) + s[::-1]
+    )
+
+
+def A118600(n):
+    if n == 1:
+        return 0
+    y = 9 * (x := 9 ** integer_log(n >> 1, 9)[0])
+    return int(
+        (s := gmpy2digits(n - x, 9)) + s[-2::-1]
+        if n < x + y
+        else (s := gmpy2digits(n - y, 9)) + s[::-1]
+    )
+
+
+def A373448(n):
+    if n == 0:
+        return 0
+    k = 10**n
+    a = 1 << (l := k.bit_length() - 2)
+    m = a | (k & a - 1)
+    return (
+        (m << l + 1) + int(bin(m)[:1:-1] or "0", 2)
+        if a & k
+        else (m << l) + int(bin(m)[-2:1:-1] or "0", 2)
+    )
+
+
+def A372074_gen():  # generator of terms
+    yield (a := 1)
+    while True:
+        yield (a := (s := sum(map(int, str(a)))) + a * 10 ** len(str(s)))
+
+
+def A372075_gen():  # generator of terms
+    yield (a := 1)
+    while True:
+        yield (a := a + 10 ** len(s := str(a)) * sum(map(int, s)))
+
+
+def A016052_gen():  # generator of terms
+    yield (a := 3)
+    while True:
+        yield (a := a + sum(map(int, str(a))))
+
+
+def A007412(n):
+    return n + (k := integer_nthroot(n, 3)[0]) + int(n >= (k + 1) ** 3 - k)
+
+
+def A030140(n):
+    return (n + (k := isqrt(n)) + int(n >= k * (k + 1) + 1)) ** 2
+
+
+def A140823(n):
+    return n + (k := integer_nthroot(n, 4)[0]) + int(n >= (k + 1) ** 4 - k)
+
+
+def A000037(n):
+    return n + (k := isqrt(n)) + int(n >= k * (k + 1) + 1)
+
+
+def A014132(n):
+    return n + (isqrt((n << 3) - 7) + 1 >> 1)
+
+
+def A057717(n):
+    return n + (m := len(str(n - 1))) + int(n >= 10**m - m)
+
+
+def A109470(n):
+    return (
+        (m := n + (k := integer_nthroot(n, 3)[0]) + int(n >= (k + 1) ** 3 - k))
+        * (m + 1)
+        >> 1
+    ) - ((r := integer_nthroot(m, 3)[0]) * (r + 1) >> 1) ** 2
+
+
+def A086849(n):
+    return ((m := n + (k := isqrt(n)) + int(n >= k * (k + 1) + 1)) * (m + 1) >> 1) - (
+        (r := isqrt(m)) * (r + 1) * ((r << 1) + 1) // 6
+    )
+
+
+def A329598(n):
+    return (
+        k := (r := isqrt(m := n + 1 << 1)) + int((m << 2) > (r << 2) * (r + 1) + 1) - 1
+    ) * (k * (-k - 3) + 6 * n - 2) // 6 + (n * (n + 3) >> 1)
+
+
+def A373767_gen():  # generator of terms
+    k, c = 0, 0
+    for i in count(1):
+        for n in range(i**3 + 1, (i + 1) ** 3):
+            k += 1
+            c += n
+            if is_square(c):
+                yield k
+
+
+def A064524(n):
+    return n - integer_nthroot(n, 3)[0]
+
+
+def A210826(n):
+    return prod((1, -1, 0)[e % 3] for e in factorint(n).values())
+
+
+def A139179(n):
+    return n - integer_nthroot(n, 4)[0]
+
+
+def A057048(n):
+    return -isqrt(m := 1 << n + 1) + isqrt(m << 2)
+
+
+def A017911(n):
+    return -isqrt(m := 1 << n) + isqrt(m << 2)
+
+
+def A017979(n):
+    return integer_nthroot(1 << n, 3)[0]
+
+
+def A018025(n):
+    return -integer_nthroot(m := 17**n, 3)[0] + integer_nthroot(m << 3, 3)[0]
+
+
+def A018046(n):
+    return -integer_nthroot(m := 3**n << 3 * n, 3)[0] + integer_nthroot(m << 3, 3)[0]
+
+
+def A018010(n):
+    return -integer_nthroot(m := 3**n << (n << 1), 3)[0] + integer_nthroot(m << 3, 3)[0]
+
+
+def A017980(n):
+    return -integer_nthroot(m := 1 << n, 3)[0] + integer_nthroot(m << 3, 3)[0]
+
+
+def A017983(n):
+    return -integer_nthroot(m := 3**n, 3)[0] + integer_nthroot(m << 3, 3)[0]
+
+
+def A166447(n):
+    return n * ((m := isqrt(n)) + (n - m * (m + 1) >= 1))
+
+
+def A169985(n):
+    return int(
+        (m := isqrt(k := (lambda x: (x[1] << 1) + x[0])(fib2(n << 1))))
+        + (k - m * (m + 1) >= 1)
+    )
+
+
+def A088828(n):
+    return (s := (m := isqrt(k := (n << 1) - 1)) + (k - m * (m + 1) >= 1)) + k + (s & 1)
+
+
+def A004202(n):
+    return n + comb((m := isqrt(k := n << 1)) + (k - m * (m + 1) >= 1) + 1, 2)
+
+
+def A057211(n):
+    return int(bool(isqrt(n << 3) + 1 & 2))
+
+
+def A057212(n):
+    return int(not isqrt(n << 3) + 1 & 2)
+
+
+def A070169(n):
+    return (m := isqrt(k := 3 * n**4)) + (k - m * (m + 1) >= 1)
+
+
+def A216124_gen(startvalue=3):  # generator of terms >= startvalue
+    q = max(3, nextprime(startvalue - 1))
+    p = prevprime(q)
+    r = nextprime(q)
+    while True:
+        if q == (m := isqrt(k := p * r)) + (k - m * (m + 1) >= 1):
+            yield q
+        p, q, r = q, r, nextprime(r)
+
+
+def A017920(n):
+    return (m := isqrt(k := 5**n)) + (k - m * (m + 1) >= 1)
+
+
+def A017919(n):
+    return isqrt(5**n)
+
+
+def A017921(n):
+    return isqrt(5**n) + (n & 1)
+
+
+def A115366(n):
+    return sum(1 for k in range(1, 10**n + 1) if isprime(k * (k + 3) + 1))
+
+
+def A165453(n):
+    return (k := (m := isqrt(n)) + (n - m * (m + 1) >= 1)) * (3 * n + 1 - k**2) // 3
+
+
+def A027924(n):
+    return isqrt((n * (n + 1)) ** 2 << 1) + 1 >> 1
+
+
+def A100665(n):
+    return int((m := isqrt(k := fib(n))) + (k - m * (m + 1) >= 1))
+
+
+def A200216(n):
+    return (
+        14
+        + 12 * (lucas(k := 30 * n - 15) if n & 1 else -lucas(k := 30 * n - 15))
+        + lucas(k << 1)
+    ) // 20
+
+
+def A309407(n):
+    if n == 0:
+        return 1
+    a, b = integer_nthroot(12 * n + 9, 2)
+    return a - (c := isqrt(3 * n + 2)) - (b & (c & 1 ^ 1))
+
+
+def A168038(n):
+    return (isqrt(n << 3) + 1 >> 1) ** 2
+
+
+def A093995(n):
+    return (isqrt(n << 3) + 1 >> 1) ** 2
+
+
+def A085903(n):
+    return (1 << n) - 1 if n & 1 else ((1 << (n >> 1)) - 1) ** 2
+
+
+def A062872(n):
+    return isqrt(factorial(n) * n**n << 2) + 1 >> 1
+
+
+def A062871(n):
+    return isqrt(factorial(n) * n**n)
+
+
+def A077163(n):
+    return n ** (isqrt(n << 3) + 1 >> 1)
+
+
+def A057062(n):
+    return isqrt(prime(n) << 3) + 1 >> 1
+
+
+def A130080(n):
+    a, b = integer_nthroot(10 ** (n - 1), 6)
+    return a + (not b)
+
+
+def A373868(n):
+    return n + (k := integer_nthroot(n, 5)[0]) + (n >= (k + 1) ** 5 - k)
+
+
+def A018178(n):
+    return -integer_nthroot(m := 11**n << n, 5)[0] + integer_nthroot(m << 5, 5)[0]
+
+
+def A018064(n):
+    return -integer_nthroot(m := 7**n, 4)[0] + integer_nthroot(m << 4, 4)[0]
+
+
+def A130084(n):
+    return (lambda x: x[0] + (not x[1]))(integer_nthroot(10 ** (n - 1), 10))
+
+
+def A130081(n):
+    return (lambda x: x[0] + (not x[1]))(integer_nthroot(10 ** (n - 1), 7))
+
+
+def A130083(n):
+    return (lambda x: x[0] + (not x[1]))(integer_nthroot(10 ** (n - 1), 9))
+
+
+def A130082(n):
+    return (lambda x: x[0] + (not x[1]))(integer_nthroot(10 ** (n - 1), 8))
+
+
+def A018133(n):
+    i, j = iroot_rem(7**n, 5)
+    return int(i) + int(
+        j << 5 >= 10 * i * ((i * ((i * (i + 1) << 1) + 1) << 2) + 1) + 1
+    )
+
+
+def A018136(n):
+    i, j = iroot_rem(1 << 3 * n, 5)
+    return int(i) + int(
+        j << 5 >= 10 * i * ((i * ((i * (i + 1) << 1) + 1) << 2) + 1) + 1
+    )
+
+
+def A018124(n):
+    i, j = iroot_rem(1 << (n << 1), 5)
+    return int(i) + int(
+        j << 5 >= 10 * i * ((i * ((i * (i + 1) << 1) + 1) << 2) + 1) + 1
+    )
+
+
+def A018151(n):
+    i, j = iroot_rem(13**n, 5)
+    return int(i) + int(
+        j << 5 >= 10 * i * ((i * ((i * (i + 1) << 1) + 1) << 2) + 1) + 1
+    )
+
+
+def A018130(n):
+    i, j = iroot_rem(6**n, 5)
+    return int(i) + int(
+        j << 5 >= 10 * i * ((i * ((i * (i + 1) << 1) + 1) << 2) + 1) + 1
+    )
+
+
+def A018157(n):
+    i, j = iroot_rem(15**n, 5)
+    return int(i) + int(
+        j << 5 >= 10 * i * ((i * ((i * (i + 1) << 1) + 1) << 2) + 1) + 1
+    )
+
+
+def A018160(n):
+    i, j = iroot_rem(1 << (n << 2), 5)
+    return int(i) + int(
+        j << 5 >= 10 * i * ((i * ((i * (i + 1) << 1) + 1) << 2) + 1) + 1
+    )
+
+
+def A005875(n):
+    return A004018(n) + (sum(A004018(n - k**2) for k in range(1, isqrt(n) + 1)) << 1)
+
+
+def A016728(n):
+    if n == 0:
+        return 1
+    return sum(A005875(i) for i in range(n * (n - 1) + 1, n * (n + 1) + 1))
+
+
+def A289761(n):
+    return (n + (m := n % 6)) * (n - (k := m - 3)) // 3 + k
+
+
+def A289873(n):
+    return (n + (m := n % 6)) * (n - (k := m - 3)) // 3 + k - n
+
+
+def A046895(n):
+    return (
+        1
+        + (
+            (
+                -((s := isqrt(n)) ** 2) * (s + 1)
+                + sum((q := n // k) * ((k << 1) + q + 1) for k in range(1, s + 1))
+                & -1
+            )
+            << 2
+        )
+        + (
+            (
+                (t := isqrt(m := n >> 2)) ** 2 * (t + 1)
+                - sum((q := m // k) * ((k << 1) + q + 1) for k in range(1, t + 1))
+                & -1
+            )
+            << 4
+        )
+    )
+
+
+def A373882(n):
+    return (
+        1
+        + (
+            (
+                -((s := isqrt(a := 10**n)) ** 2) * (s + 1)
+                + sum((q := a // k) * ((k << 1) + q + 1) for k in range(1, s + 1))
+                & -1
+            )
+            << 2
+        )
+        + (
+            (
+                (t := isqrt(m := a >> 2)) ** 2 * (t + 1)
+                - sum((q := m // k) * ((k << 1) + q + 1) for k in range(1, t + 1))
+                & -1
+            )
+            << 4
+        )
+    )
+
+
+def A101455(n):
+    return (0, 1, 0, -1)[n & 3]
+
+
+def A050470(n):
+    return prod(
+        (p ** (e + 1 << 1) - (m := (0, 1, 0, -1)[p & 3])) // (p**2 - m)
+        for p, e in factorint(n).items()
+    )
+
+
+def A002173(n):
+    return prod(
+        ((m := p**2 * (0, 1, 0, -1)[p & 3]) ** (e + 1) - 1) // (m - 1)
+        for p, e in factorint(n).items()
+    )
+
+
+def A000141(n):
+    if n == 0:
+        return 1
+    f = [(p, e, (0, 1, 0, -1)[p & 3]) for p, e in factorint(n).items()]
+    return (prod((p ** (e + 1 << 1) - c) // (p**2 - c) for p, e, c in f) << 2) - prod(
+        ((k := p**2 * c) ** (e + 1) - 1) // (k - 1) for p, e, c in f
+    ) << 2
+
+
+def A175361(n):
+    c = 1
+    for m in range(1, n + 1):
+        f = [(p, e, (0, 1, 0, -1)[p & 3]) for p, e in factorint(m).items()]
+        c += (
+            prod((p ** (e + 1 << 1) - a) // (p**2 - a) for p, e, a in f) << 2
+        ) - prod(((k := p**2 * a) ** (e + 1) - 1) // (k - 1) for p, e, a in f) << 2
+    return c
+
+
+def A055412(n):
+    c = 1
+    for m in range(1, n**2 + 1):
+        f = [(p, e, (0, 1, 0, -1)[p & 3]) for p, e in factorint(m).items()]
+        c += (
+            prod((p ** (e + 1 << 1) - a) // (p**2 - a) for p, e, a in f) << 2
+        ) - prod(((k := p**2 * a) ** (e + 1) - 1) // (k - 1) for p, e, a in f) << 2
+    return c
+
+
+def A008457(n):
+    return prod(
+        (p ** (3 * (e + 1)) - (1 if p & 1 else 15)) // (p**3 - 1)
+        for p, e in factorint(n).items()
+    )
+
+
+def A000143(n):
+    return (
+        prod(
+            (p ** (3 * (e + 1)) - (1 if p & 1 else 15)) // (p**3 - 1)
+            for p, e in factorint(n).items()
+        )
+        << 4
+        if n
+        else 1
+    )
+
+
+def A341397(n):
+    return (
+        sum(
+            (
+                prod(
+                    (p ** (3 * (e + 1)) - (1 if p & 1 else 15)) // (p**3 - 1)
+                    for p, e in factorint(m).items()
+                )
+                for m in range(1, n + 1)
+            )
+        )
+        << 4
+    ) + 1
+
+
+def A350740(n):
+    return A046895(n * (n + 1)) - A046895(n * (n - 1)) if n else 1
+
+
+def A000132(n):
+    return A000118(n) + (sum(A000118(n - k**2) for k in range(1, isqrt(n) + 1)) << 1)
+
+
+def A175360(n):
+    return A046895(n) + (sum(A046895(n - k**2) for k in range(1, isqrt(n) + 1)) << 1)
+
+
+def A373883(n):
+    return A175360(10**n)
+
+
+def A373883(n):
+    return A175360(10**n)
+
+
+def A373352(n):
+    if n == 1:
+        return 1
+    k, s = -1, 0
+    while k := k + n:
+        if s < (t := isqrt(k) + 1):
+            a, b = integer_nthroot(pow(s := t, 2, n), 2)
+            if b:
+                return gcd(n, t - a)
+
+
+def A373461(n):
+    if n == 1:
+        return 1
+    k, s = -1, 0
+    while k := k + n:
+        if s < (t := isqrt(k) + 1):
+            a, b = integer_nthroot(pow(s := t, 2, n), 2)
+            if b:
+                return t - a
+
+
+def A362502(n):
+    k, s = 0, 0
+    while k := k + 1:
+        if s < (t := isqrt(k * n) + 1):
+            if is_square(pow(s := t, 2, n)):
+                return k
+
+
+def A117609(n):
+    return sum(A005875(i) for i in range(n + 1))
+
+
+def A373881(n):
+    return A117609(10**n)
+
+
+def A008451(n):
+    return A000141(n) + (sum(A000141(n - k**2) for k in range(1, isqrt(n) + 1)) << 1)
+
+
+def A341396(n):
+    return sum(A008451(i) for i in range(n + 1))
+
+
+def A373885(n):
+    return A341396(10**n)
+
+
+def A008452(n):
+    return A000143(n) + (sum(A000143(n - k**2) for k in range(1, isqrt(n) + 1)) << 1)
+
+
+def A186690(n):
+    return (1 if n & 1 else -1) * prod(
+        (p ** (e + 1) - 1) // (p - 1) if p & 1 else 1 << e
+        for p, e in factorint(n).items()
+    )
+
+
+def A373663(n):
+    return ((n + 1) * (n + 2) + 6 if n & 1 else (n + 2) * (n + 3) - 4) >> 1
+
+
+def A373662(n):
+    return ((n + 1) * (n + 2) - 1 if n & 1 else n * (n + 1) + 5) >> 1
+
+
+def A373468_gen(startvalue=2):  # generator of terms >= startvalue
+    p = max(1, startvalue - 1)
+    while p := nextprime(p):
+        if is_nthpow_residue(2, 16, p) and not is_nthpow_residue(2, 32, p):
+            yield p
+
+
+def A059287_gen(startvalue=2):  # generator of terms >= startvalue
+    p = max(1, startvalue - 1)
+    while p := nextprime(p):
+        if is_nthpow_residue(2, 8, p) and not is_nthpow_residue(2, 16, p):
+            yield p
+
+
+def A070184_gen(startvalue=2):  # generator of terms >= startvalue
+    p = max(1, startvalue - 1)
+    while p := nextprime(p):
+        if is_nthpow_residue(2, 8, p) and not is_nthpow_residue(2, 64, p):
+            yield p
+
+
+def A055411(n):
+    return A046895(m := n**2) + (sum(A046895(m - k**2) for k in range(1, n + 1)) << 1)
+
+
+def A055410(n):
+    return (
+        1
+        + (
+            (
+                -(s := n**2) * (n + 1)
+                + sum((q := s // k) * ((k << 1) + q + 1) for k in range(1, n + 1))
+                & -1
+            )
+            << 2
+        )
+        + (
+            (
+                (t := isqrt(m := s >> 2)) ** 2 * (t + 1)
+                - sum((q := m // k) * ((k << 1) + q + 1) for k in range(1, t + 1))
+                & -1
+            )
+            << 4
+        )
+    )
+
+
+def A002804(n):
+    return (1 << n) + (3**n >> n) - 2
+
+
+def A374012(n):
+    if n == 1:
+        return 1
+    for k in count(1):
+        try:
+            next(power_representation(n, 6, k))
+        except:
+            continue
+        return k
+
+
+def A188462(n):
+    if n == 1:
+        return 1
+    for k in count(1):
+        try:
+            next(power_representation(n, 5, k))
+        except:
+            continue
+        return k
+
+
+def A002377(n):
+    if n == 1:
+        return 1
+    for k in count(1):
+        try:
+            next(power_representation(n, 4, k))
+        except:
+            continue
+        return k
+
+
+def A002376(n):
+    if n == 1:
+        return 1
+    for k in count(1):
+        try:
+            next(power_representation(n, 3, k))
+        except:
+            continue
+        return k
+
+
+def A018886(n):
+    return (3**n & -(1 << n)) - 1
+
+
+def A174420(n):
+    return ((m := 3**n) & -(k := 1 << n)) + k - m - (m >> n) - 2
+
+
+def A252486(n):
+    m = n**6
+    for k in count(2):
+        try:
+            next(power_representation(m, 6, k))
+        except:
+            continue
+        return k
+
+
+def A252476(n):
+    for k in count(1):
+        try:
+            next(power_representation(k**6, 6, n))
+        except:
+            continue
+        for m in range(2, n):
+            try:
+                next(power_representation(k**6, 6, m))
+            except:
+                continue
+            break
+        else:
+            return k
+
+
+def A297446(n):
+    return pow(3, n, (1 << n) - 1) - 1 if n > 2 else n
+
+
+def A185187(n):
+    return ((m := 3**n) & -(1 << n)) + m - 1 if n > 2 else 23
+
+
+def A261572(n):
+    for k in count(1):
+        try:
+            next(power_representation(k**6, 6, n))
+        except:
+            continue
+        return k
+
+
+def A086539_gen():  # generator of terms
+    alist, a, b = [1], 1, 0
+    yield 1
+    while a := next(m for m in count(a + 1) if all(gcd(m, d) == 1 for d in alist)):
+        yield a
+        alist = alist[(b := b ^ 1) :] + [a]
+
+
+def A373965_gen():  # generator of terms
+    alist, a, b = [1], 1, 0
+    yield 1
+    while a := next(m for m in count(a + 1) if all(gcd(m, d) == 1 for d in alist)):
+        if (x := integer_nthroot(a, 2))[1]:
+            yield x[0]
+        alist = alist[(b := b ^ 1) :] + [a]
+
+
+def A005478_gen():  # generator of terms
+    a, b = 1, 1
+    while True:
+        if isprime(b):
+            yield b
+        a, b = b, a + b
+
+
+def A374025(n):
+    return max(
+        sum(int(d) for d in str(m**5))
+        for m in range(
+            (lambda x: x[0] + (x[1] ^ 1))(integer_nthroot(10 ** (n - 1), 5)),
+            1 + integer_nthroot(10**n - 1, 5)[0],
+        )
+    )
+
+
+def A373914(n):
+    return max(
+        sum(int(d) for d in str(m**4))
+        for m in range(
+            (lambda x: x[0] + (x[1] ^ 1))(integer_nthroot(10 ** (n - 1), 4)),
+            1 + integer_nthroot(10**n - 1, 4)[0],
+        )
+    )
+
+
+def A372842(n):
+    return 3 * (n + 1) ** (n - 1) - (n - 1) ** (n - 1) >> 2
+
+
+def A372844(n):
+    return 5 * (n + 1) ** (n - 1) - (13 * (n - 1) ** 2 - 4) * (n - 3) ** (n - 3) >> 3
+
+
+def A372843(n):
+    return (((n + 1) ** (n - 1) << 1) - ((n << 1) - 1) * (n - 2) ** (n - 2)) // 3
+
+
+def A372845(n):
+    return (
+        18 * (n + 1) ** (n - 1)
+        - (n * (n * (59 * ((n << 1) - 9)) + 659) - 192) * (n - 4) ** (n - 4)
+    ) // 30
+
+
+def A373727(n):
+    return max(
+        sum(int(d) for d in str(m**3))
+        for m in range(
+            (lambda x: x[0] + (x[1] ^ 1))(integer_nthroot(10 ** (n - 1), 3)),
+            1 + integer_nthroot(10**n - 1, 3)[0],
+        )
+    )
+
+
+def A348300(n):
+    return max(sum(int(d) for d in str(m**2)) for m in range(10 ** (n - 1), 10**n))
+
+
+def A373893(n):
+    return (
+        len(
+            continued_fraction(
+                sum(Fraction(1 if k & 1 else -1, k) for k in range(1, n + 1))
+            )
+        )
+        - 1
+    )
+
+
+def A055573(n):
+    return len(continued_fraction(harmonic(n)))
+
+
+def A374088(n):
+    return sum(
+        1
+        for d in diop_quadratic(symbolx * (symbolx + symboly) + symboly**2 - n)
+        if d[0] > 0 and d[1] > 0
+    )
+
+
+def A374090(n):
+    return next(
+        m
+        for m in (3 * k**2 if n & 1 else k for k in count(0))
+        if sum(
+            1
+            for d in diop_quadratic(symbolx * (symbolx + symboly) + symboly**2 - m)
+            if d[0] > 0 and d[1] > 0
+        )
+        == n
+    )
+
+
+def A374091(n):
+    if n == 0:
+        return 0
+    for k in count(1):
+        m = 5 * k**2 if n & 1 else k
+        c = set()
+        for z in range(2, isqrt(m - 1) + 1):
+            w = m - z**2
+            for x in divisors(w):
+                y = z - x
+                if y > 0 and x * y == w:
+                    c.add((x, y))
+        if len(c) == n:
+            return m
+
+
+def A374158(n):
+    return next(
+        m
+        for m in count(0)
+        if sum(
+            1
+            for d in diop_quadratic(symbolx**2 + 3 * symboly**2 - m)
+            if d[0] > 0 and d[1] > 0
+        )
+        == n
+    )
+
+
+def A374159(n):
+    return next(
+        m
+        for m in count(0)
+        if sum(
+            1
+            for d in diop_quadratic(symbolx**2 + 7 * symboly**2 - m)
+            if d[0] > 0 and d[1] > 0
+        )
+        == n
+    )
+
+
+def A374160(n):
+    return next(
+        m
+        for m in count(0)
+        if sum(
+            1
+            for d in diop_quadratic(symbolx**2 + 11 * symboly**2 - m)
+            if d[0] > 0 and d[1] > 0
+        )
+        == n
+    )
+
+
+def A374161(n):
+    return next(
+        m
+        for m in count(0)
+        if sum(
+            1
+            for d in diop_quadratic(symbolx**2 + 19 * symboly**2 - m)
+            if d[0] > 0 and d[1] > 0
+        )
+        == n
+    )
