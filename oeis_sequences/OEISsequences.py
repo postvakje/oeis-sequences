@@ -150,6 +150,7 @@ from sympy import (
     proper_divisors,
     exp,
     is_nthpow_residue,
+    cyclotomic_poly,
 )
 from sympy.functions import hyper, partition, euler
 from sympy.ntheory import (
@@ -578,8 +579,16 @@ def faulhaber(n, p):
     ) // (p + 1)
 
 
+def iterfun(f, n=0):
+    """iterate function f starting from n until fixed point of f"""
+    m, k = n, f(n)
+    while m != k:
+        m, k = k, f(k)
+    return m
+
+
 def bisection(f, kmin=0, kmax=1):
-    """bisection method"""
+    """bisection method to find fixed point of f"""
     while f(kmax) > kmax:
         kmax <<= 1
     while kmax - kmin > 1:
@@ -593,6 +602,8 @@ def bisection(f, kmin=0, kmax=1):
 
 def almostprimepi(n, k):
     """number of k-almost primes <= n"""
+    if k == 0:
+        return int(n >= 1)
 
     def g(x, a, b, c, m):
         yield from (
@@ -616,6 +627,8 @@ def almostprimepi(n, k):
 
 def squarefreealmostprimepi(n, k):
     """number of squarefree k-almost primes <= n"""
+    if k == 0:
+        return int(n >= 1)
 
     def g(x, a, b, c, m):
         yield from (
@@ -648,7 +661,7 @@ def almostprime(n, k):
     def f(x):
         return n + x - almostprimepi(x, k)
 
-    return bisection(f) if k > 1 else prime(n)
+    return bisection(f, m := f(f(n)), m) if k > 1 else prime(n)
 
 
 def squarefreealmostprime(n, k):
@@ -657,7 +670,7 @@ def squarefreealmostprime(n, k):
     def f(x):
         return n + x - squarefreealmostprimepi(x, k)
 
-    return bisection(f) if k > 1 else prime(n)
+    return bisection(f, m := f(f(n)), m) if k > 1 else prime(n)
 
 
 def squarefree(n):
@@ -666,7 +679,7 @@ def squarefree(n):
     def f(x):
         return n + x - squarefreepi(x)
 
-    return bisection(f)
+    return bisection(f, m := f(f(n)), m)
 
 
 """ Lunar arithmetic """
@@ -41626,15 +41639,6 @@ def A359802(n):
     return prod((2, 3, 5, 7, 11, 13, 17, 19, 23, 29)[i] for i in map(int, str(n)))
 
 
-def A118896(n):
-    m = 10**n
-    return sum(
-        isqrt(m // x**3)
-        for x in range(1, integer_nthroot(m, 3)[0] + 1)
-        if max(factorint(x).values(), default=0) <= 1
-    )
-
-
 def A337737(n):
     if n == 0:
         return 1
@@ -61379,10 +61383,7 @@ def A013929(n):
     def f(x):
         return n + sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m
+    return iterfun(f, n)
 
 
 def A063035(n):
@@ -62861,16 +62862,6 @@ def A018806(n):
 
 
 def A051193(n):
-    f = factorint(n).items()
-    return n * (
-        1
-        + prod((p ** ((e << 1) + 1 << 1) - 1) // (p + 1) for p, e in f)
-        // prod((p ** ((e << 1) + 1) - 1) for p, e in f)
-        >> 1
-    )
-
-
-def A051193(n):
     return n * (
         1 + prod((p ** ((e << 1) + 1) + 1) // (p + 1) for p, e in factorint(n).items())
         >> 1
@@ -63133,10 +63124,7 @@ def A370833(n):
             )
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return max(primefactors(m), default=1)
+    return max(primefactors(iterfun(f, n)), default=1)
 
 
 def A368779(n):
@@ -63149,10 +63137,7 @@ def A368779(n):
             )
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return primeomega(m)
+    return primeomega(iterfun(f, n))
 
 
 def A366440(n):
@@ -63165,10 +63150,7 @@ def A366440(n):
             )
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return divisor_sigma(m)
+    return divisor_sigma(iterfun(f, n))
 
 
 def A360539(n):
@@ -63185,10 +63167,7 @@ def A358040(n):
             )
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return divisor_count(m)
+    return divisor_count(iterfun(f, n))
 
 
 def A358039(n):
@@ -63201,10 +63180,7 @@ def A358039(n):
             )
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return totient(m)
+    return totient(iterfun(f, n))
 
 
 def A160112(n):
@@ -63438,34 +63414,25 @@ def A374754(n):
 
 def A087797(n):
     def f(x):
-        return (
+        return int(
             n + x - primepi(x) - primepi(isqrt(x)) - primepi(integer_nthroot(x, 3)[0])
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return int(m)
+    return iterfun(f, n)
 
 
 def A000430(n):
     def f(x):
-        return n + x - primepi(x) - primepi(isqrt(x))
+        return int(n + x - primepi(x) - primepi(isqrt(x)))
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return int(m)
+    return iterfun(f, n)
 
 
 def A168363(n):
     def f(x):
-        return n + x - primepi(isqrt(x)) - primepi(integer_nthroot(x, 3)[0])
+        return int(n + x - primepi(isqrt(x)) - primepi(integer_nthroot(x, 3)[0]))
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return int(m)
+    return iterfun(f, n)
 
 
 def A001248(n):
@@ -63478,12 +63445,9 @@ def A034785(n):
 
 def A166684(n):
     def f(x):
-        return n - 1 + x - primepi(x) - primepi(isqrt(x))
+        return int(n - 1 + x - primepi(x) - primepi(isqrt(x)))
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return int(m)
+    return iterfun(f, n)
 
 
 def A229964(n):
@@ -63512,10 +63476,7 @@ def A145522(n):
             - sum(primepi(integer_nthroot(x, p)[0]) for p in primerange(x.bit_length()))
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    a = prod(e**p for p, e in factorint(m).items())
+    a = prod(e**p for p, e in factorint(iterfun(f, n)).items())
     return sum(primepi(integer_nthroot(a, p)[0]) for p in primerange(a.bit_length()))
 
 
@@ -63589,10 +63550,7 @@ def A369889(n):
             )
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return prod(p + 1 for p in primefactors(m))
+    return prod(p + 1 for p in primefactors(iterfun(f, n)))
 
 
 def A368712(n):
@@ -63605,10 +63563,7 @@ def A368712(n):
             )
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return max(factorint(m).values(), default=0)
+    return max(factorint(iterfun(f, n)).values(), default=0)
 
 
 def A180499(n):
@@ -63621,50 +63576,35 @@ def A180499(n):
             )
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return n**3 + m
+    return n**3 + iterfun(f, n)
 
 
 def A072048(n):
     def f(x):
         return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return divisor_count(m)
+    return divisor_count(iterfun(f, n))
 
 
 def A073245(n):
     def f(x):
         return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m * divisor_sigma(m)
+    return (m := iterfun(f, n)) * divisor_sigma(m)
 
 
 def A062822(n):
     def f(x):
         return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return divisor_sigma(m)
+    return divisor_sigma(iterfun(f, n))
 
 
 def A373550(n):
     def f(x):
         return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m & 1
+    return iterfun(f, n) & 1
 
 
 def A365435(n):
@@ -63683,20 +63623,14 @@ def A243348(n):
     def f(x):
         return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m - n
+    return iterfun(f, n) - n
 
 
 def A243351(n):
     def f(x):
         return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return (n << 1) - m
+    return (n << 1) - iterfun(f, n)
 
 
 def A088611(n):
@@ -63715,20 +63649,14 @@ def A161203(n):
     def f(x):
         return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m + n**2
+    return iterfun(f, n) + n**2
 
 
 def A367452(n):
     def f(x):
         return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return (c := primenu(m)) * (c - 1) >> 1
+    return (c := primenu(iterfun(f, n))) * (c - 1) >> 1
 
 
 def A048105(n):
@@ -63739,10 +63667,7 @@ def A174961(n):
     def f(x):
         return n + sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return -(1 << len(g := factorint(m).values())) + prod(e + 1 for e in g)
+    return -(1 << len(g := factorint(iterfun(f, n)).values())) + prod(e + 1 for e in g)
 
 
 def A072358(n):
@@ -63765,10 +63690,7 @@ def A375349(n):
             )
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m & 1
+    return iterfun(f, n) & 1
 
 
 def A334393(n):
@@ -63781,10 +63703,7 @@ def A334393(n):
             - sum(primepi(integer_nthroot(x, p)[0]) for p in primerange(x.bit_length()))
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m
+    return iterfun(f, n)
 
 
 def A070428(n):
@@ -63808,10 +63727,7 @@ def A007916(n):
             )
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m
+    return iterfun(f, n)
 
 
 def A075308(n):
@@ -63876,17 +63792,14 @@ def A153158(n):
             )
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m**2
+    return iterfun(f, n) ** 2
 
 
 def A001597(n):
     def f(x):
         return int(
             n
-            - 2
+            - 1
             + x
             + sum(
                 mobius(k) * (integer_nthroot(x, k)[0] - 1)
@@ -63894,18 +63807,7 @@ def A001597(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A025478(n):
@@ -63915,7 +63817,7 @@ def A025478(n):
     def f(x):
         return int(
             n
-            - 2
+            - 1
             + x
             + sum(
                 mobius(k) * (integer_nthroot(x, k)[0] - 1)
@@ -63923,18 +63825,9 @@ def A025478(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return integer_nthroot(kmax, gcd(*factorint(kmax).values()))[0]
+    return integer_nthroot(kmax := bisection(f, n, n), gcd(*factorint(kmax).values()))[
+        0
+    ]
 
 
 def A076405(n):
@@ -63944,7 +63837,7 @@ def A076405(n):
     def f(x):
         return int(
             n
-            - 2
+            - 1
             + x
             + sum(
                 mobius(k) * (integer_nthroot(x, k)[0] - 1)
@@ -63952,18 +63845,9 @@ def A076405(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax * integer_nthroot(kmax, gcd(*factorint(kmax).values()))[0]
+    return (kmax := bisection(f, n, n)) * integer_nthroot(
+        kmax, gcd(*factorint(kmax).values())
+    )[0]
 
 
 def A025475(n):
@@ -63973,23 +63857,12 @@ def A025475(n):
     def f(x):
         return int(
             n
-            - 2
+            - 1
             + x
             - sum(primepi(integer_nthroot(x, k)[0]) for k in range(2, x.bit_length()))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, n, n)
 
 
 def A056798(n):
@@ -63999,142 +63872,71 @@ def A056798(n):
     def f(x):
         return int(
             n
-            - 2
+            - 1
             + x
             - sum(
                 primepi(integer_nthroot(x, k)[0]) for k in range(2, x.bit_length(), 2)
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, n, n)
 
 
 def A246551(n):
     def f(x):
         return int(
             n
-            - 1
             + x
             - sum(
                 primepi(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length(), 2)
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, n, n)
 
 
 def A053810(n):
     def f(x):
         return int(
             n
-            - 1
             + x
             - sum(primepi(integer_nthroot(x, p)[0]) for p in primerange(x.bit_length()))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, n, n)
 
 
 def A053811(n):
     def f(x):
         return int(
             n
-            - 1
             + x
             - sum(primepi(integer_nthroot(x, p)[0]) for p in primerange(x.bit_length()))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return primefactors(kmax)[0]
+    return primefactors(bisection(f, n, n))[0]
 
 
 def A053812(n):
     def f(x):
         return int(
             n
-            - 1
             + x
             - sum(primepi(integer_nthroot(x, p)[0]) for p in primerange(x.bit_length()))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return list(factorint(kmax).values())[0]
+    return list(factorint(bisection(f, n, n)).values())[0]
 
 
 def A145521(n):
     def f(x):
         return int(
             n
-            - 1
             + x
             - sum(primepi(integer_nthroot(x, p)[0]) for p in primerange(x.bit_length()))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return prod(e**p for p, e in factorint(kmax).items())
+    return prod(e**p for p, e in factorint(bisection(f, n, n)).items())
 
 
 def A053707(n):
@@ -64230,7 +64032,7 @@ def A253642(n):
     def f(x):
         return int(
             n
-            - 2
+            - 1
             + x
             + sum(
                 mobius(k) * (integer_nthroot(x, k)[0] - 1)
@@ -64238,18 +64040,7 @@ def A253642(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return divisor_count(gcd(*factorint(kmax).values())) - 1
+    return divisor_count(gcd(*factorint(bisection(f, n, n)).values())) - 1
 
 
 def A175064(n):
@@ -64259,7 +64050,7 @@ def A175064(n):
     def f(x):
         return int(
             n
-            - 2
+            - 1
             + x
             + sum(
                 mobius(k) * (integer_nthroot(x, k)[0] - 1)
@@ -64267,24 +64058,28 @@ def A175064(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return divisor_count(gcd(*factorint(kmax).values()))
+    return divisor_count(gcd(*factorint(bisection(f, n, n)).values()))
 
 
 def A099998(n):
     def f(x):
         return int(
             (n << 1)
+            - 1
+            + x
+            + sum(
+                mobius(k) * (integer_nthroot(x, k)[0] - 1)
+                for k in range(2, x.bit_length())
+            )
+        )
+
+    return bisection(f, n, n)
+
+
+def A099997(n):
+    def f(x):
+        return int(
+            (n << 1)
             - 2
             + x
             + sum(
@@ -64293,74 +64088,24 @@ def A099998(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
-
-
-def A099997(n):
-    def f(x):
-        return int(
-            (n << 1)
-            - 3
-            + x
-            + sum(
-                mobius(k) * (integer_nthroot(x, k)[0] - 1)
-                for k in range(2, x.bit_length())
-            )
-        )
-
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, n, n)
 
 
 def A246547(n):
     def f(x):
         return int(
             n
-            - 1
             + x
             - sum(primepi(integer_nthroot(x, k)[0]) for k in range(2, x.bit_length()))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, n, n)
 
 
 def A097054(n):
     def f(x):
         return int(
             n
-            - 1
             + x
             + sum(
                 mobius(k) * (integer_nthroot(x, k)[0] - 1)
@@ -64368,25 +64113,14 @@ def A097054(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, n, n)
 
 
 def A070265(n):
     def f(x):
         return int(
             n
-            - 2
+            - 1
             + x
             + sum(
                 mobius(k) * (integer_nthroot(x, k)[0] - 1)
@@ -64394,18 +64128,7 @@ def A070265(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, n, n)
 
 
 def A097055_gen(startvalue=2):  # generator of terms >= startvalue
@@ -64427,7 +64150,7 @@ def A076400(n):
     def f(x):
         return int(
             n
-            - 2
+            - 1
             + x
             + sum(
                 mobius(k) * (integer_nthroot(x, k)[0] - 1)
@@ -64435,25 +64158,14 @@ def A076400(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return int(divisor_count(kmax))
+    return int(divisor_count(bisection(f, n, n)))
 
 
 def A076399(n):
     def f(x):
         return int(
             n
-            - 2
+            - 1
             + x
             + sum(
                 mobius(k) * (integer_nthroot(x, k)[0] - 1)
@@ -64461,25 +64173,14 @@ def A076399(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return int(primeomega(kmax))
+    return int(primeomega(bisection(f, n, n)))
 
 
 def A076398(n):
     def f(x):
         return int(
             n
-            - 2
+            - 1
             + x
             + sum(
                 mobius(k) * (integer_nthroot(x, k)[0] - 1)
@@ -64487,24 +64188,14 @@ def A076398(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return int(primenu(kmax))
+    return int(primenu(bisection(f, n, n)))
 
 
 def A340585(n):
     def f(x):
         return int(
             n
+            + 1
             + x
             - isqrt(x)
             + sum(
@@ -64513,24 +64204,14 @@ def A340585(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, n, n)
 
 
 def A239728(n):
     def f(x):
         return int(
             n
+            + 1
             + x
             - integer_nthroot(x, 5)[0]
             + sum(
@@ -64539,25 +64220,13 @@ def A239728(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, n, n)
 
 
 def A076467(n):
     def f(x):
         return int(
             n
-            - 1
             + x
             - integer_nthroot(x, 4)[0]
             + sum(
@@ -64567,25 +64236,14 @@ def A076467(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, n, n)
 
 
 def A076468(n):
     def f(x):
         return int(
             n
-            + 2
+            + 3
             + x
             - integer_nthroot(x, 4)[0]
             - (integer_nthroot(x, 6)[0] << 1)
@@ -64602,25 +64260,14 @@ def A076468(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, n, n)
 
 
 def A076469(n):
     def f(x):
         return int(
             n
-            + 3
+            + 4
             + x
             - (integer_nthroot(x, 6)[0] << 1)
             - integer_nthroot(x, 8)[0]
@@ -64639,25 +64286,14 @@ def A076469(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, n, n)
 
 
 def A076470(n):
     def f(x):
         return int(
             n
-            + 9
+            + 10
             + x
             - (sum(integer_nthroot(x, d)[0] for d in (6, 10, 15)) << 1)
             - sum(integer_nthroot(x, d)[0] for d in (8, 9, 12, 20, 25))
@@ -64667,25 +64303,14 @@ def A076470(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, n, n)
 
 
 def A131605(n):
     def f(x):
         return int(
             n
-            - 2
+            - 1
             + x
             + sum(
                 mobius(k) * ((a := integer_nthroot(x, k)[0]) - 1) + primepi(a)
@@ -64693,47 +64318,10 @@ def A131605(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, n, n)
 
 
 def A340588(n):
-    def f(x):
-        return int(
-            n
-            - 2
-            + x
-            + sum(
-                mobius(k) * (integer_nthroot(x, k)[0] - 1)
-                for k in range(2, x.bit_length())
-            )
-        )
-
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax**2
-
-
-def A062965(n):
     def f(x):
         return int(
             n
@@ -64745,18 +64333,21 @@ def A062965(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax**2 - 1
+    return bisection(f, n, n) ** 2
+
+
+def A062965(n):
+    def f(x):
+        return int(
+            n
+            + x
+            + sum(
+                mobius(k) * (integer_nthroot(x, k)[0] - 1)
+                for k in range(2, x.bit_length())
+            )
+        )
+
+    return bisection(f, n, n) ** 2 - 1
 
 
 def A267574(n):
@@ -64788,9 +64379,7 @@ def A051451(n):
             - sum(primepi(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length()))
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
+    m = iterfun(f, n)
     return prod(p ** integer_log(m, p)[0] for p in primerange(m + 1))
 
 
@@ -64803,9 +64392,7 @@ def A051452(n):
             - sum(primepi(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length()))
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
+    m = iterfun(f, n)
     return 1 + prod(p ** integer_log(m, p)[0] for p in primerange(m + 1))
 
 
@@ -64818,9 +64405,7 @@ def A208768(n):
             - sum(primepi(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length()))
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
+    m = iterfun(f, n)
     return prod(p ** integer_log(m, p)[0] for p in primerange(m + 1)) - 1
 
 
@@ -64833,9 +64418,7 @@ def A051454(n):
             - sum(primepi(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length()))
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
+    m = iterfun(f, n)
     return min(
         primefactors(1 + prod(p ** integer_log(m, p)[0] for p in primerange(m + 1)))
     )
@@ -64849,10 +64432,7 @@ def A126706(n):
             + sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m
+    return bisection(f, m := f(f(n)), m)
 
 
 def A358089(n):
@@ -64884,33 +64464,18 @@ def A025473(n):
             - sum(primepi(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length()))
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return primefactors(m)[0]
+    return primefactors(iterfun(f, n))[0]
 
 
 def A025476(n):
     def f(x):
         return int(
             n
-            - 1
             + x
             - sum(primepi(integer_nthroot(x, k)[0]) for k in range(2, x.bit_length()))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return primefactors(kmax)[0]
+    return primefactors(bisection(f, m := f(f(n)), m))[0]
 
 
 def A048148(n):
@@ -64929,10 +64494,7 @@ def A025474(n):
             - sum(primepi(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length()))
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return list(factorint(m).values())[0]
+    return list(factorint(iterfun(f, n)).values())[0]
 
 
 def A192015(n):
@@ -64947,9 +64509,7 @@ def A192015(n):
             - sum(primepi(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length()))
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
+    m = iterfun(f, n)
     return sum((m * e // p for p, e in factorint(m).items()))
 
 
@@ -64973,20 +64533,15 @@ def A363924(n):
     def f(x):
         return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
+    m = iterfun(f, n)
     return int(sum(mobius(k) * (m // k) for k in range(1, m + 1) if gcd(m, k) == 1))
 
 
 def A133466(n):
     def f(x):
-        return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
+        return int(n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1)))
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return int(m) << 2
+    return iterfun(f, n) << 2
 
 
 def A076259(n):
@@ -65012,10 +64567,7 @@ def A006881(n):
             - sum(primepi(x // k) for k in primerange(1, s + 1))
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m
+    return iterfun(f, n)
 
 
 def A036351(n):
@@ -65091,10 +64643,7 @@ def A228578(n):
             - sum(primepi(x // k) for k in primerange(1, s + 1))
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return sum(primefactors(m))
+    return sum(primefactors(iterfun(f, n)))
 
 
 def A105997(n):
@@ -65143,10 +64692,7 @@ def A030513(n):
             - sum(primepi(x // k) for k in primerange(1, s + 1))
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m
+    return iterfun(f, n)
 
 
 def A007422(n):
@@ -65161,10 +64707,7 @@ def A007422(n):
             - sum(primepi(x // k) for k in primerange(1, s + 1))
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m
+    return iterfun(f, n)
 
 
 def A072114(n):
@@ -65189,10 +64732,7 @@ def A014612(n):
             )
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m
+    return bisection(f, m := f(f(n)), m)
 
 
 def A014613(n):
@@ -65210,10 +64750,7 @@ def A014613(n):
             )
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m
+    return bisection(f, m := f(f(n)), m)
 
 
 def A253721(n):
@@ -65228,10 +64765,7 @@ def A253721(n):
             )
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m % 10
+    return iterfun(f, n) % 10
 
 
 def A046315(n):
@@ -65243,10 +64777,7 @@ def A046315(n):
             - sum(primepi(x // k) for k in primerange(3, s + 1))
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m
+    return bisection(f, m := f(f(n)), m)
 
 
 def A114106(n):
@@ -65276,10 +64807,7 @@ def A014614(n):
             )
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m
+    return bisection(f, m := f(f(n)), m)
 
 
 def A124284(n):
@@ -65350,13 +64878,11 @@ def A061218(n):
                     c.append(tuple(sorted((d,) + a)))
         return list(set(c))
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
+    k = f(f(n))
     return min(
         (
             prod(prime(i) ** (j - 1) for i, j in enumerate(reversed(d), 1))
-            for d in mult_factors(m)
+            for d in mult_factors(bisection(f, k, k))
         ),
         default=1,
     )
@@ -65516,13 +65042,10 @@ def A185445(n):
             )
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
     return min(
         (
             prod(prime(i) ** (j - 1) for i, j in enumerate(reversed(d), 1))
-            for d in mult_factors(m)
+            for d in mult_factors(iterfun(f, n))
         ),
         default=1,
     )
@@ -65532,10 +65055,7 @@ def A375491(n):
     def f(x):
         return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    a = set(primefactors(m))
+    a = set(primefactors(bisection(f, k := f(f(n)), k)))
     return sum(
         prod((p ** sum(1 for q in b if q % p == 1) - 1) // (p - 1) for p in a - set(b))
         for l in range(0, len(a) + 1)
@@ -65547,10 +65067,7 @@ def A375483(n):
     def f(x):
         return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    a = set(primefactors(m))
+    a = set(primefactors(m := bisection(f, k := f(f(n)), k)))
     return sum(
         prod((p ** sum(1 for q in b if q % p == 1) - 1) // (p - 1) for p in a - set(b))
         for l in range(0, len(a) + 1)
@@ -65568,10 +65085,7 @@ def A085986(n):
             - sum(primepi(x // k) for k in primerange(1, s + 1))
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m**2
+    return bisection(f, m := f(f(n)), m) ** 2
 
 
 def A072774(n):
@@ -65581,23 +65095,12 @@ def A072774(n):
     def f(x):
         return (
             n
-            - 2
+            - 1
             + x
             - sum(g(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length()))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A072775(n):
@@ -65607,23 +65110,12 @@ def A072775(n):
     def f(x):
         return (
             n
-            - 2
+            - 1
             + x
             - sum(g(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length()))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return prod(primefactors(kmax))
+    return prod(primefactors(bisection(f, m := f(f(n)), m)))
 
 
 def A072490(n):
@@ -65640,24 +65132,10 @@ def A072777(n):
 
     def f(x):
         return (
-            n
-            - 1
-            + x
-            - sum(g(integer_nthroot(x, k)[0]) for k in range(2, x.bit_length()))
+            n + x - sum(g(integer_nthroot(x, k)[0]) for k in range(2, x.bit_length()))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A072778(n):
@@ -65678,41 +65156,19 @@ def A072776(n):
     def f(x):
         return (
             n
-            - 2
+            - 1
             + x
             - sum(g(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length()))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return 1 if not (p := perfect_power(kmax)) else p[1]
+    return 1 if not (p := perfect_power(bisection(f, m := f(f(n)), m))) else p[1]
 
 
 def A062503(n):
     def f(x):
-        return n - 1 + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
+        return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax**2
+    return bisection(f, m := f(f(n)), m) ** 2
 
 
 def A062770(n):
@@ -65728,18 +65184,7 @@ def A062770(n):
             - sum(g(integer_nthroot(x, k)[0]) for k in range(1, y))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A375109(n):
@@ -65751,20 +65196,9 @@ def A375109(n):
 
 def A113849(n):
     def f(x):
-        return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
+        return n + 1 + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax**4
+    return bisection(f, m := f(f(n)), m) ** 4
 
 
 def A059404(n):
@@ -65774,23 +65208,12 @@ def A059404(n):
     def f(x):
         return (
             n
-            + 1
+            + 2
             - (y := x.bit_length())
             + sum(g(integer_nthroot(x, k)[0]) for k in range(1, y))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A303946(n):
@@ -65804,10 +65227,7 @@ def A303946(n):
             )
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m
+    return iterfun(f, n)
 
 
 def A304449(n):
@@ -65822,10 +65242,7 @@ def A304449(n):
             )
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m
+    return iterfun(f, n)
 
 
 def A303554(n):
@@ -65837,10 +65254,7 @@ def A303554(n):
             - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
         )
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m
+    return iterfun(f, n)
 
 
 def A108954(n):
@@ -65861,56 +65275,16 @@ def A303661(n):
 
     def f(x):
         return (
-            n
-            - 1
-            + x
-            - sum(g(integer_nthroot(x, k)[0]) for k in range(2, x.bit_length()))
+            n + x - sum(g(integer_nthroot(x, k)[0]) for k in range(2, x.bit_length()))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A303606(n):
-    def g(x):
-        return int(
-            sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1)) - primepi(x)
-        )
+    if n == 1:
+        return 36
 
-    def f(x):
-        return (
-            n
-            - 3
-            + x
-            + (y := x.bit_length())
-            - sum(g(integer_nthroot(x, k)[0]) for k in range(2, y))
-        )
-
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
-
-
-def A182853(n):
     def g(x):
         return int(
             sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1)) - primepi(x)
@@ -65922,21 +65296,28 @@ def A182853(n):
             - 2
             + x
             + (y := x.bit_length())
+            - sum(g(integer_nthroot(x, k)[0]) for k in range(2, y))
+        )
+
+    return bisection(f, m := f(f(n)), m)
+
+
+def A182853(n):
+    def g(x):
+        return int(
+            sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1)) - primepi(x)
+        )
+
+    def f(x):
+        return (
+            n
+            - 1
+            + x
+            + (y := x.bit_length())
             - sum(g(integer_nthroot(x, k)[0]) for k in range(1, y))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A001690(n):
@@ -65948,33 +65329,18 @@ def A001690(n):
             a, b = b, a + b
             c += 1
 
-    m, k = n, f(n)
-    while m != k:
-        m, k = k, f(k)
-    return m
+    return iterfun(f, n)
 
 
 def A246655(n):
     def f(x):
         return int(
             n
-            - 1
             + x
             - sum(primepi(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length()))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A085970(n):
@@ -65992,21 +65358,12 @@ def A085972(n):
 def A085971(n):
     def f(x):
         return int(
-            n + sum(primepi(integer_nthroot(x, k)[0]) for k in range(2, x.bit_length()))
+            n
+            + 1
+            + sum(primepi(integer_nthroot(x, k)[0]) for k in range(2, x.bit_length()))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A085818(n):
@@ -66035,24 +65392,13 @@ def A359129(n):
     def f(x):
         return int(
             n
-            - 2
+            - 1
             + x
             - sum(primepi(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length()))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
     return (
-        (m := kmax**2)
+        (m := bisection(f, k := f(f(n)), k) ** 2)
         * (m * (m * (m * (m * (m * (m * (m - 1) + 1) - 2) + 2) - 2) + 1) - 1)
         + 1
     ) * m**6
@@ -66089,46 +65435,24 @@ def A330669(n):
     def f(x):
         return int(
             n
-            - 2
+            - 1
             + x
             - sum(primepi(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length()))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return int(primepi(primefactors(kmax)[0]))
+    return int(primepi(primefactors(bisection(f, m := f(f(n)), m))[0]))
 
 
 def A371195(n):
     def f(x):
         return int(
             n
-            - 2
+            - 1
             + x
             - sum(primepi(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length()))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax**4 * (kmax - 1)
+    return (k := bisection(f, m := f(f(n)), m)) ** 4 * (k - 1)
 
 
 def A368325(n):
@@ -66330,38 +65654,16 @@ def A048146(n):
 
 def A028982(n):
     def f(x):
-        return n - 1 + x - isqrt(x) - isqrt(x >> 1)
+        return n + x - isqrt(x) - isqrt(x >> 1)
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A028983(n):
     def f(x):
-        return n - 1 + isqrt(x) + isqrt(x >> 1)
+        return n + isqrt(x) + isqrt(x >> 1)
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 @lru_cache(maxsize=None)
@@ -66399,25 +65701,13 @@ def A046306(n):
     def f(x):
         return int(
             n
-            - 1
             + x
             - sum(
                 primepi(x // prod(c[1] for c in a)) - a[-1][0] for a in g(x, 0, 1, 1, 6)
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A069281(n):
@@ -66437,7 +65727,6 @@ def A069281(n):
     def f(x):
         return int(
             n
-            - 1
             + x
             - sum(
                 primepi(x // prod(c[1] for c in a)) - a[-1][0]
@@ -66445,18 +65734,7 @@ def A069281(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A101695(n):
@@ -66479,25 +65757,13 @@ def A101695(n):
     def f(x):
         return int(
             n
-            - 1
             + x
             - sum(
                 primepi(x // prod(c[1] for c in a)) - a[-1][0] for a in g(x, 0, 1, 1, n)
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A078841(n):
@@ -66520,24 +65786,14 @@ def A078841(n):
     def f(x):
         return int(
             n
+            + 1
             + x
             - sum(
                 primepi(x // prod(c[1] for c in a)) - a[-1][0] for a in g(x, 0, 1, 1, n)
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A078840_T(n, k):
@@ -66560,25 +65816,13 @@ def A078840_T(n, k):
     def f(x):
         return int(
             k
-            - 1
             + x
             - sum(
                 primepi(x // prod(c[1] for c in a)) - a[-1][0] for a in g(x, 0, 1, 1, n)
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(k)), m)
 
 
 def A069280(n):
@@ -66598,7 +65842,6 @@ def A069280(n):
     def f(x):
         return int(
             n
-            - 1
             + x
             - sum(
                 primepi(x // prod(c[1] for c in a)) - a[-1][0]
@@ -66606,18 +65849,7 @@ def A069280(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A069279(n):
@@ -66637,7 +65869,6 @@ def A069279(n):
     def f(x):
         return int(
             n
-            - 1
             + x
             - sum(
                 primepi(x // prod(c[1] for c in a)) - a[-1][0]
@@ -66645,18 +65876,7 @@ def A069279(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A046308(n):
@@ -66676,25 +65896,13 @@ def A046308(n):
     def f(x):
         return int(
             n
-            - 1
             + x
             - sum(
                 primepi(x // prod(c[1] for c in a)) - a[-1][0] for a in g(x, 0, 1, 1, 7)
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A046307(n):
@@ -66714,6 +65922,7 @@ def A046307(n):
     def f(x):
         return int(
             n
+            + 1
             + primepi(x)
             + sum(
                 sum(
@@ -66724,18 +65933,38 @@ def A046307(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
+
+
+def A046311(n):
+    def g(x, a, b, c, m):
+        yield from (
+            ((d,) for d in enumerate(primerange(b, isqrt(x // c) + 1), a))
+            if m == 2
+            else (
+                ((a2, b2),) + d
+                for a2, b2 in enumerate(
+                    primerange(b, integer_nthroot(x // c, m)[0] + 1), a
+                )
+                for d in g(x, a2, b2, c * b2, m - 1)
+            )
+        )
+
+    def f(x):
+        return int(
+            n
+            + 1
+            + primepi(x)
+            + sum(
+                sum(
+                    primepi(x // prod(c[1] for c in a)) - a[-1][0]
+                    for a in g(x, 0, 1, 1, i)
+                )
+                for i in range(2, 9)
+            )
+        )
+
+    return bisection(f, m := f(f(n)), m)
 
 
 def A046309(n):
@@ -66755,6 +65984,7 @@ def A046309(n):
     def f(x):
         return int(
             n
+            + 1
             + primepi(x)
             + sum(
                 sum(
@@ -66765,18 +65995,7 @@ def A046309(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A116453(n):
@@ -66804,25 +66023,13 @@ def A046310(n):
     def f(x):
         return int(
             n
-            - 1
             + x
             - sum(
                 primepi(x // prod(c[1] for c in a)) - a[-1][0] for a in g(x, 0, 1, 1, 8)
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A046321(n):
@@ -66842,25 +66049,13 @@ def A046321(n):
     def f(x):
         return int(
             n
-            - 1
             + x
             - sum(
                 primepi(x // prod(c[1] for c in a)) - a[-1][0] for a in g(x, 1, 3, 1, 8)
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A120049(n):
@@ -66927,7 +66122,6 @@ def A046323(n):
     def f(x):
         return int(
             n
-            - 1
             + x
             - sum(
                 primepi(x // prod(c[1] for c in a)) - a[-1][0]
@@ -66935,18 +66129,7 @@ def A046323(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A033987(n):
@@ -66966,6 +66149,7 @@ def A033987(n):
     def f(x):
         return int(
             n
+            + 1
             + primepi(x)
             + sum(
                 sum(
@@ -66976,18 +66160,7 @@ def A033987(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A037144(n):
@@ -67008,7 +66181,7 @@ def A037144(n):
         return int(
             n
             + x
-            - 2
+            - 1
             - primepi(x)
             - sum(
                 sum(
@@ -67019,18 +66192,7 @@ def A037144(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A128644(n):
@@ -67054,7 +66216,7 @@ def A128644(n):
         return int(
             n
             + x
-            - 2
+            - 1
             - primepi(x)
             - sum(
                 sum(
@@ -67065,18 +66227,7 @@ def A128644(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    fs = factorint(kmax)
+    fs = factorint(bisection(f, m := f(f(n)), m))
     if max(fs.values()) == 1:
         a = set(fs.keys())
         return sum(
@@ -67109,46 +66260,25 @@ def A033942(n):
     def f(x):
         return int(
             n
+            + 1
             + primepi(x)
             + sum(primepi(x // k) - a for a, k in enumerate(primerange(isqrt(x) + 1)))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A037143(n):
     def f(x):
         return int(
             n
-            - 2
+            - 1
             + x
             - primepi(x)
             - sum(primepi(x // k) - a for a, k in enumerate(primerange(isqrt(x) + 1)))
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A046313(n):
@@ -67168,6 +66298,7 @@ def A046313(n):
     def f(x):
         return int(
             n
+            + 1
             + primepi(x)
             + sum(
                 sum(
@@ -67178,18 +66309,7 @@ def A046313(n):
             )
         )
 
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A120053(n):
@@ -67222,16 +66342,7 @@ def A090864(n):
     def f(x):
         return n + (m := isqrt(24 * x + 1) + 1) // 6 + (m - 2) // 6
 
-    kmin, kmax = 0, 1
-    while f(kmax) > kmax:
-        kmax <<= 1
-    while kmax - kmin > 1:
-        kmid = kmax + kmin >> 1
-        if f(kmid) <= kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A183218(n):
@@ -67251,16 +66362,7 @@ def A138929(n):
             - sum(primepi(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length()))
         )
 
-    kmin, kmax = 0, 1
-    while f(kmax) > kmax:
-        kmax <<= 1
-    while kmax - kmin > 1:
-        kmid = kmax + kmin >> 1
-        if f(kmid) <= kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-    return kmax << 1
+    return bisection(f, m := f(f(n)), m) << 1
 
 
 def A230078(n):
@@ -67277,16 +66379,7 @@ def A230078(n):
             )
         )
 
-    kmin, kmax = 0, 1
-    while f(kmax) > kmax:
-        kmax <<= 1
-    while kmax - kmin > 1:
-        kmid = kmax + kmin >> 1
-        if f(kmid) <= kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A020513(n):
@@ -67319,16 +66412,7 @@ def A007304(n):
             )
         )
 
-    kmin, kmax = 0, 1
-    while f(kmax) > kmax:
-        kmax <<= 1
-    while kmax - kmin > 1:
-        kmid = kmax + kmin >> 1
-        if f(kmid) <= kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A162143(n):
@@ -67343,7 +66427,7 @@ def A162143(n):
             )
         )
 
-    return bisection(f) ** 2
+    return bisection(f, m := f(f(n)), m) ** 2
 
 
 def A096917(n):
@@ -67358,7 +66442,7 @@ def A096917(n):
             )
         )
 
-    return min(primefactors(bisection(f)))
+    return min(primefactors(bisection(f, m := f(f(n)), m)))
 
 
 def A096918(n):
@@ -67373,7 +66457,7 @@ def A096918(n):
             )
         )
 
-    return sorted(primefactors(bisection(f)))[1]
+    return sorted(primefactors(bisection(f, m := f(f(n)), m)))[1]
 
 
 def A096919(n):
@@ -67388,7 +66472,7 @@ def A096919(n):
             )
         )
 
-    return max(primefactors(bisection(f)))
+    return max(primefactors(bisection(f, m := f(f(n)), m)))
 
 
 def A087053(n):
@@ -67403,7 +66487,9 @@ def A087053(n):
             )
         )
 
-    return (p := primefactors(bisection(f)))[0] * (p[1] + p[2]) + p[1] * p[2]
+    return (p := primefactors(bisection(f, m := f(f(n)), m)))[0] * (p[1] + p[2]) + p[
+        1
+    ] * p[2]
 
 
 def A162144(n):
@@ -67418,7 +66504,7 @@ def A162144(n):
             )
         )
 
-    return bisection(f) ** 3
+    return bisection(f, m := f(f(n)), m) ** 3
 
 
 def A271329(n):
@@ -67433,7 +66519,7 @@ def A271329(n):
             )
         )
 
-    return divisor_sigma(bisection(f))
+    return divisor_sigma(bisection(f, m := f(f(n)), m))
 
 
 def A246716(n):
@@ -67445,7 +66531,7 @@ def A246716(n):
             + sum(primepi(x // k) for k in primerange(1, s + 1))
         )
 
-    return bisection(f)
+    return bisection(f, m := f(f(n)), m)
 
 
 def A046386(n):
@@ -67463,7 +66549,7 @@ def A046386(n):
             )
         )
 
-    return bisection(f)
+    return bisection(f, m := f(f(n)), m)
 
 
 def A046387(n):
@@ -67489,7 +66575,7 @@ def A046387(n):
             )
         )
 
-    return bisection(f)
+    return bisection(f, m := f(f(n)), m)
 
 
 def A067885(n):
@@ -67515,7 +66601,7 @@ def A067885(n):
             )
         )
 
-    return bisection(f)
+    return bisection(f, m := f(f(n)), m)
 
 
 def A361102(n):
@@ -67524,7 +66610,7 @@ def A361102(n):
             n + sum(primepi(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length()))
         )
 
-    return bisection(f)
+    return bisection(f, m := f(f(n)), m)
 
 
 def A123321(n):
@@ -67550,16 +66636,7 @@ def A123321(n):
             )
         )
 
-    kmin, kmax = 0, 1
-    while f(kmax) > kmax:
-        kmax <<= 1
-    while kmax - kmin > 1:
-        kmid = kmax + kmin >> 1
-        if f(kmid) <= kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A123322(n):
@@ -67585,16 +66662,7 @@ def A123322(n):
             )
         )
 
-    kmin, kmax = 0, 1
-    while f(kmax) > kmax:
-        kmax <<= 1
-    while kmax - kmin > 1:
-        kmid = kmax + kmin >> 1
-        if f(kmid) <= kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A115343(n):
@@ -67620,16 +66688,7 @@ def A115343(n):
             )
         )
 
-    kmin, kmax = 0, 1
-    while f(kmax) > kmax:
-        kmax <<= 1
-    while kmax - kmin > 1:
-        kmid = kmax + kmin >> 1
-        if f(kmid) <= kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A281222(n):
@@ -67656,18 +66715,7 @@ def A281222(n):
             )
         )
 
-    def bisection(f, kmin=0, kmax=1):
-        while f(kmax) > kmax:
-            kmax <<= 1
-        while kmax - kmin > 1:
-            kmid = kmax + kmin >> 1
-            if f(kmid) <= kmid:
-                kmax = kmid
-            else:
-                kmin = kmid
-        return kmax
-
-    return bisection(f)
+    return bisection(f, m := f(f(n)), m)
 
 
 def A340467(n):
@@ -67696,16 +66744,7 @@ def A340467(n):
             )
         )
 
-    kmin, kmax = 0, 1
-    while f(kmax) > kmax:
-        kmax <<= 1
-    while kmax - kmin > 1:
-        kmid = kmax + kmin >> 1
-        if f(kmid) <= kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A356683(n):
@@ -67764,32 +66803,14 @@ def A340316_T(n, k):
             )
         )
 
-    kmin, kmax = 0, 1
-    while f(kmax) > kmax:
-        kmax <<= 1
-    while kmax - kmin > 1:
-        kmid = kmax + kmin >> 1
-        if f(kmid) <= kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A072047(n):
     def f(x):
         return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    kmin, kmax = 0, 1
-    while f(kmax) > kmax:
-        kmax <<= 1
-    while kmax - kmin > 1:
-        kmid = kmax + kmin >> 1
-        if f(kmid) <= kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-    return primenu(kmax)
+    return primenu(bisection(f, m := f(f(n)), m))
 
 
 def A340313(n):
@@ -67812,15 +66833,7 @@ def A340313(n):
     def f(x):
         return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    kmin, kmax = 0, 1
-    while f(kmax) > kmax:
-        kmax <<= 1
-    while kmax - kmin > 1:
-        kmid = kmax + kmin >> 1
-        if f(kmid) <= kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
+    kmax = bisection(f, m := f(f(n)), m)
     return int(
         sum(
             primepi(kmax // prod(c[1] for c in a)) - a[-1][0]
@@ -67842,18 +66855,7 @@ def A337877(n):
             )
         )
 
-    def bisection(f, kmin=0, kmax=1):
-        while f(kmax) > kmax:
-            kmax <<= 1
-        while kmax - kmin > 1:
-            kmid = kmax + kmin >> 1
-            if f(kmid) <= kmid:
-                kmax = kmid
-            else:
-                kmin = kmid
-        return kmax
-
-    return bisection(f)
+    return bisection(f, m := f(f(n)), m)
 
 
 def A068499(n):
@@ -67984,16 +66986,7 @@ def A069278(n):
             )
         )
 
-    kmin, kmax = 0, 1
-    while f(kmax) > kmax:
-        kmax <<= 1
-    while kmax - kmin > 1:
-        kmid = kmax + kmin >> 1
-        if f(kmid) <= kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A069277(n):
@@ -68020,48 +67013,21 @@ def A069277(n):
             )
         )
 
-    kmin, kmax = 0, 1
-    while f(kmax) > kmax:
-        kmax <<= 1
-    while kmax - kmin > 1:
-        kmid = kmax + kmin >> 1
-        if f(kmid) <= kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A073481(n):
     def f(x):
         return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    kmin, kmax = 0, 1
-    while f(kmax) > kmax:
-        kmax <<= 1
-    while kmax - kmin > 1:
-        kmid = kmax + kmin >> 1
-        if f(kmid) <= kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-    return min(primefactors(kmax), default=1)
+    return min(primefactors(bisection(f, m := f(f(n)), m)), default=1)
 
 
 def A073482(n):
     def f(x):
         return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    kmin, kmax = 0, 1
-    while f(kmax) > kmax:
-        kmax <<= 1
-    while kmax - kmin > 1:
-        kmid = kmax + kmin >> 1
-        if f(kmid) <= kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-    return max(primefactors(kmax), default=1)
+    return max(primefactors(bisection(f, m := f(f(n)), m)), default=1)
 
 
 def A374663_gen():  # generator of terms
@@ -68118,17 +67084,10 @@ def A277010(n):
     def f(x):
         return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    kmin, kmax = 0, 1
-    while f(kmax) > kmax:
-        kmax <<= 1
-    while kmax - kmin > 1:
-        kmid = kmax + kmin >> 1
-        if f(kmid) <= kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
+    m = f(f(n))
     return sum(
-        1 << primepi(p) + i for i, p in enumerate(factorint(kmax, multiple=True), -1)
+        1 << primepi(p) + i
+        for i, p in enumerate(factorint(bisection(f, m, m), multiple=True), -1)
     )
 
 
@@ -68136,18 +67095,10 @@ def A277195(n):
     def f(x):
         return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    kmin, kmax = 0, 1
-    while f(kmax) > kmax:
-        kmax <<= 1
-    while kmax - kmin > 1:
-        kmid = kmax + kmin >> 1
-        if f(kmid) <= kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
+    m = f(f(n))
     return sum(
         fibonacci(primepi(p) + i)
-        for i, p in enumerate(factorint(kmax, multiple=True), 1)
+        for i, p in enumerate(factorint(bisection(f, m, m), multiple=True), 1)
     )
 
 
@@ -68155,7 +67106,7 @@ def A062320(n):
     def f(x):
         return n + 1 + sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
 
-    return bisection(f) ** 2
+    return bisection(f, m := f(f(n)), m) ** 2
 
 
 def A030229(n):
@@ -68186,16 +67137,7 @@ def A030229(n):
             )
         )
 
-    kmin, kmax = 0, 1
-    while f(kmax) > kmax:
-        kmax <<= 1
-    while kmax - kmin > 1:
-        kmid = kmax + kmin >> 1
-        if f(kmid) <= kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A030059(n):
@@ -68226,16 +67168,7 @@ def A030059(n):
             )
         )
 
-    kmin, kmax = 0, 1
-    while f(kmax) > kmax:
-        kmax <<= 1
-    while kmax - kmin > 1:
-        kmid = kmax + kmin >> 1
-        if f(kmid) <= kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-    return kmax
+    return bisection(f, m := f(f(n)), m)
 
 
 def A106419(n):
@@ -68338,18 +67271,21 @@ def A106418(n):
             )
         )
 
+    def bisection(f, kmin, kmax, mmin, mmax):
+        while kmax - kmin > 1:
+            kmid = kmax + kmin >> 1
+            mmid = f(kmid)
+            if mmid > mmin:
+                kmax, mmax = kmid, mmid
+            else:
+                kmin, mmin = kmid, mmid
+        return kmax
+
     for l in count(len(str(primorial(n))) - 1):
         kmin, kmax = 8 * 10**l - 1, 9 * 10**l - 1
         mmin, mmax = f(kmin), f(kmax)
         if mmax > mmin:
-            while kmax - kmin > 1:
-                kmid = kmax + kmin >> 1
-                mmid = f(kmid)
-                if mmid > mmin:
-                    kmax, mmax = kmid, mmid
-                else:
-                    kmin, mmin = kmid, mmid
-            return kmax
+            return bisection(f, kmin, kmax, mmin, mmax)
 
 
 def A375791_gen():  # generator of terms
@@ -68385,10 +67321,6 @@ def A375776_gen():  # generator of terms
 
 def A164346(n):
     return 3 << (n << 1)
-
-
-def A000302(n):
-    return 1 << (n << 1)
 
 
 def A375764(n):
@@ -68476,3 +67408,1257 @@ def A120041(n):
 
 def A120043(n):
     return -almostprimepi(m := 1 << n, 12) + almostprimepi(m << 1, 12)
+
+
+def A375849(n):
+    return max(
+        filter(
+            lambda x: x & 1,
+            sum(
+                (Counter(factorint(i)) for i in range(2, n + 1)), start=Counter()
+            ).values(),
+        )
+    )
+
+
+def A375850(n):
+    return max(
+        filter(
+            lambda x: x & 1 ^ 1,
+            sum(
+                (Counter(factorint(i)) for i in range(2, n + 1)), start=Counter()
+            ).values(),
+        ),
+        default=0,
+    )
+
+
+def A366786(n):
+    def f(x):
+        return n + x - sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
+
+    return (m := bisection(f, k := f(f(n)), k)) * min(primefactors(m), default=1)
+
+
+def A278567(n):
+    def f(x):
+        return int(
+            n
+            + x
+            - sum(
+                primepi(x // (k * m)) - b
+                for a, k in enumerate(primerange(integer_nthroot(x, 3)[0] + 1), 1)
+                for b, m in enumerate(primerange(k + 1, isqrt(x // k) + 1), a + 1)
+            )
+        )
+
+    m = f(f(n))
+    return max(
+        int(abs(x[1][0][0])) for x in cyclotomic_poly(bisection(f, m, m)).as_terms()[0]
+    )
+
+
+def A239656(n):
+    return A007304(n + 1) - A007304(n)
+
+
+def A375875(n):
+    m = 1 << n - 1
+    k = squarefreepi(m)
+    for i in count(k + 1):
+        a = squarefree(i)
+        if not (isprime(a) or any((a - 1) % (p - 1) for p in primefactors(a))):
+            return a
+
+
+def A242493(n):
+    return sum(primepi(n // i) - primepi(i) for i in range(1, isqrt(n) + 1))
+
+
+def A064052(n):
+    def f(x):
+        return int(
+            n + x - sum(primepi(x // i) - primepi(i) for i in range(1, isqrt(x) + 1))
+        )
+
+    return bisection(f, m := f(f(n)), m)
+
+
+def A048098(n):
+    def f(x):
+        return int(
+            n + sum(primepi(x // i) - primepi(i) for i in range(1, isqrt(x) + 1))
+        )
+
+    return bisection(f, m := f(f(n)), m)
+
+
+def A078843(n):
+    return almostprimepi(3**n, n) if n else 1
+
+
+def A078846(n):
+    return almostprimepi(11**n, n) if n else 1
+
+
+def A116435(n):
+    return almostprimepi(n**n, n)
+
+
+def A291972(n):
+    return next(
+        k
+        for k in (squarefreealmostprime(i, n) for i in count(1))
+        if (m := prod(Fraction(p + 1, p - 1) for p in primefactors(k))).denominator == 1
+        and isprime(m.numerator)
+    )
+
+
+def A081548(n):
+    return (
+        next(
+            k + 1
+            for k in (squarefreealmostprime(i, n) for i in count(1))
+            if not isprime(k + 1)
+        )
+        if n
+        in {
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            11,
+            75,
+            171,
+            172,
+            384,
+            457,
+            616,
+            643,
+            1391,
+            1613,
+            2122,
+            2647,
+            2673,
+            4413,
+            13494,
+            31260,
+            33237,
+            304723,
+            365071,
+        }
+        else primorial(n) + 1
+    )
+
+
+def A116434(n):
+    return almostprimepi((n + 1) ** n, n)
+
+
+def A368210_T(n, k):
+    return almostprimepi(n, k)
+
+
+def A375730(n):
+    return n * (n * (n ** (n - 2) + 1) + 2) + 1 if n > 1 else 3 * n + 2
+
+
+def A124309(n):
+    return almostprime(prime(n), 5)
+
+
+def A124308(n):
+    return prime(almostprime(n, 5))
+
+
+def A124283(n):
+    def f(x):
+        return int(
+            prime(n)
+            + x
+            - sum(
+                primepi(x // (k * m * r)) - c
+                for a, k in enumerate(primerange(integer_nthroot(x, 4)[0] + 1))
+                for b, m in enumerate(
+                    primerange(k, integer_nthroot(x // k, 3)[0] + 1), a
+                )
+                for c, r in enumerate(primerange(m, isqrt(x // (k * m)) + 1), b)
+            )
+        )
+
+    return bisection(f, m := f(f(n)), m)
+
+
+def A045763(n):
+    return n + 1 - divisor_count(n) - totient(n)
+
+
+def A369167(n):
+    return A000688(n + A000688(n))
+
+
+def A369162(n):
+    return A000688(A000688(n))
+
+
+def A081547(n):
+    return 10 if n == 2 else ((3 << n - 1) + 1 if isprime(m := (1 << n) + 1) else m)
+
+
+def A061357(n):
+    return sum(1 for p in primerange(n) if isprime((n << 1) - p))
+
+
+def A002372(n):
+    return int(isprime(n)) + (A061357(n) << 1) if n != 2 else 0
+
+
+def A281069(n):
+    return (
+        next(
+            k
+            for k in (squarefreealmostprime(i, n) for i in count(1))
+            if (p := perfect_power(prod(p - 1 for p in primefactors(k)))) and p[1] == n
+        )
+        if n > 1
+        else 2
+    )
+
+
+def A132296(n):
+    return n * (n + 1) - (((r := integer_nthroot(n, 3)[0]) * (r + 1)) ** 2 >> 1) >> 1
+
+
+def A158527(n):
+    return (
+        n
+        * (n * (n * (n * (n * (n * (n * (6 * (n + 4)) + 54) + 78) + 69) + 36) + 10) + 1)
+        >> 1
+    )
+
+
+def A139819(n):
+    m, k = n, n + 9 * ((l := len(str(n))) - 1) + 9 * n // (10**l - 1)
+    while m != k:
+        m, k = k, n + 9 * ((l := len(str(k))) - 1) + 9 * k // (10**l - 1)
+    return m
+
+
+def A048396(n):
+    return n * (n * (n * (n * (6 * n + 15) + 18) + 12) + 3) >> 1
+
+
+def A367642(n):
+    if n == 1:
+        return 2
+
+    def f(x):
+        return int(
+            1
+            - sum(
+                mobius(k) * (integer_nthroot(x, k)[0] - 1)
+                for k in range(2, x.bit_length())
+            )
+        )
+
+    m = (f(n) << 1) - bool(perfect_power(n))
+
+    def g(x):
+        return m + x - f(x)
+
+    return bisection(g, k := g(g(m)), k) + 1
+
+
+def A145397(n):
+    def f(x):
+        return n + next(
+            i for i in count(integer_nthroot(6 * x, 3)[0], -1) if comb(i + 2, 3) <= x
+        )
+
+    return iterfun(f, n)
+
+
+def A185550(n):
+    def f(x):
+        return n + integer_nthroot(x**2, 3)[0]
+
+    return iterfun(f, n)
+
+
+def A269020(n):
+    a, b = integer_nthroot(n ** (n + 1), n)
+    return a + (b ^ 1)
+
+
+def A059921(n):
+    return integer_nthroot(n ** (n + 1), n)[0]
+
+
+def A375543_gen():  # generator of terms
+    M, p, q, pq, r = set(), [], [], [], 1
+    while True:
+        p.append(r + 1)
+        pq.append(r + 1)
+        r *= r + 1
+        for i in count(1):
+            s = sieve[i]
+            if s not in M:
+                for j, a in enumerate(pq):
+                    if not a % s:
+                        M.add(s)
+                        q.append(s)
+                        pq[j] = a // s
+                        yield s
+                        break
+                else:
+                    continue
+                break
+
+
+def A155559(n):
+    return 1 << n if n else 0
+
+
+def A274089(n):
+    return n + (k := n.bit_length()) + bool(n + k & (1 << k)) >> 1
+
+
+def A375998(n):
+    K = 4
+    ds = [gmpy2digits(d, n) for d in range(n)]
+    dsl = [gmpy2digits(d, n) * K for d in range(n)]
+    for d in range(1, n):
+        s = gmpy2digits(d, n) * K
+        t = mpz(s, n)
+        for b in range(n - 1, 1, -1):
+            a = gmpy2digits(t, b)
+            if all(dsl[e] not in a for e in range(b)):
+                break
+        else:
+            return int(t)
+    for l in count(1):
+        mmax = n ** (l + K + 1)
+        mc = mmax
+        for d in range(0, n):
+            s = gmpy2digits(d, n) * K
+            for p in product(ds, repeat=l):
+                for a in range(l + 1):
+                    w = "".join(p[:a]) + s + "".join(p[a:])
+                    if w[0] != "0":
+                        t = mpz(w, n)
+                        if t < mc:
+                            for b in range(n - 1, 1, -1):
+                                a = gmpy2digits(t, b)
+                                if all(dsl[e] not in a for e in range(b)):
+                                    break
+                            else:
+                                mc = t
+        if mc < mmax:
+            return int(mc)
+
+
+def A376014(n):
+    return sum(
+        d**d * comb(n // d, d) for d in takewhile(lambda d: d**2 <= n, divisors(n))
+    )
+
+
+def A376015(n):
+    return sum(
+        d**n * comb(n // d, d) for d in takewhile(lambda d: d**2 <= n, divisors(n))
+    )
+
+
+def A376016(n):
+    return sum(
+        d ** (m := n // d) * comb(m, d)
+        for d in takewhile(lambda d: d**2 <= n, divisors(n))
+    )
+
+
+def A376017(n):
+    return sum(
+        d ** ((m := n // d) - d) * comb(m, d)
+        for d in takewhile(lambda d: d**2 <= n, divisors(n))
+    )
+
+
+def A376021(n):
+    return sum(
+        d ** ((m := n // d) - d) * comb(m - 1, d - 1)
+        for d in takewhile(lambda d: d**2 <= n, divisors(n))
+    )
+
+
+def A376020(n):
+    return sum(
+        d ** (m := n // d) * comb(m - 1, d - 1)
+        for d in takewhile(lambda d: d**2 <= n, divisors(n))
+    )
+
+
+def A376019(n):
+    return sum(
+        d**n * comb(n // d - 1, d - 1)
+        for d in takewhile(lambda d: d**2 <= n, divisors(n))
+    )
+
+
+def A376018(n):
+    return sum(
+        d**d * comb(n // d - 1, d - 1)
+        for d in takewhile(lambda d: d**2 <= n, divisors(n))
+    )
+
+
+def A375706(n):
+    def f(x):
+        return int(
+            n
+            + 1
+            - sum(
+                mobius(k) * (integer_nthroot(x, k)[0] - 1)
+                for k in range(2, x.bit_length())
+            )
+        )
+
+    m, k = n, f(n)
+    while m != k:
+        m, k = k, f(k)
+    return next(i for i in count(m + 1) if not perfect_power(i)) - m
+
+
+def A375708(n):
+    def f(x):
+        return int(
+            n + sum(primepi(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length()))
+        )
+
+    m, k = n, f(n)
+    while m != k:
+        m, k = k, f(k)
+    return next(i for i in count(m + 1) if len(primefactors(i)) > 1) - m
+
+
+def A375735(n):
+    def f(x):
+        return int(
+            n
+            + 1
+            + sum(primepi(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length()))
+        )
+
+    m, k = n, f(n)
+    while m != k:
+        m, k = k, f(k)
+    return next(i for i in count(m + 1) if len(primefactors(i)) > 1) - m
+
+
+def A075772(n):
+    if n == 1:
+        return 3
+
+    def f(x):
+        return int(
+            n
+            - 2
+            + x
+            + sum(
+                mobius(k) * (integer_nthroot(x, k)[0] - 1)
+                for k in range(2, x.bit_length())
+            )
+        )
+
+    a = bisection(f, m := f(f(n - 1)), m)
+    b = bisection(lambda x: f(x) + 1, a, a)
+    return min(b - a, bisection(lambda x: f(x) + 2, b, b) - b)
+
+
+def A080769(n):
+    def f(x):
+        return int(
+            n
+            - 1
+            + x
+            + sum(
+                mobius(k) * (integer_nthroot(x, k)[0] - 1)
+                for k in range(2, x.bit_length())
+            )
+        )
+
+    return int(
+        -primepi(a := bisection(f, m := f(f(n)), m))
+        + primepi(bisection(lambda x: f(x) + 1, a, a))
+    )
+
+
+def A076432_gen():  # generator of terms
+    def f(x):
+        return int(
+            x
+            + sum(
+                mobius(k) * (integer_nthroot(x, k)[0] - 1)
+                for k in range(2, x.bit_length())
+            )
+        )
+
+    a = bisection(f, m := f(f(1)), m)
+    b = bisection(lambda x: f(x) + 1, a, a)
+    c = bisection(lambda x: f(x) + 2, b, b)
+    d = bisection(lambda x: f(x) + 3, c, c)
+    for i in count(4):
+        e = bisection(lambda x: f(x) + i, d, d)
+        if d - a < e - d:
+            yield d
+        a, b, c, d = b, c, d, e
+
+
+def A076433_gen():  # generator of terms
+    def f(x):
+        return int(
+            x
+            + sum(
+                mobius(k) * (integer_nthroot(x, k)[0] - 1)
+                for k in range(2, x.bit_length())
+            )
+        )
+
+    a = bisection(f, m := f(f(1)), m)
+    b = bisection(lambda x: f(x) + 1, a, a)
+    c = bisection(lambda x: f(x) + 2, b, b)
+    for i in count(3):
+        d = bisection(lambda x: f(x) + i, c, c)
+        if b - a > d - b:
+            yield b
+        a, b, c = b, c, d
+
+
+def A001694(n):
+    def f(x):
+        c, l = n + x, 0
+        j = isqrt(x)
+        while j > 1:
+            k2 = integer_nthroot(x // j**2, 3)[0] + 1
+            w = squarefreepi(k2 - 1)
+            c -= j * (w - l)
+            l, j = w, isqrt(x // k2**3)
+        c -= squarefreepi(integer_nthroot(x, 3)[0]) - l
+        return c
+
+    return bisection(f, n, n)
+
+
+def A052485(n):
+    def f(x):
+        return int(
+            n
+            + sum(
+                isqrt(x // k**3)
+                for k in range(1, integer_nthroot(x, 3)[0] + 1)
+                if all(d <= 1 for d in factorint(k).values())
+            )
+        )
+
+    return iterfun(f, n)
+
+
+def A076446(n):
+    def f(x):
+        return int(
+            n
+            + x
+            - sum(
+                isqrt(x // k**3)
+                for k in range(1, integer_nthroot(x, 3)[0] + 1)
+                if all(d <= 1 for d in factorint(k).values())
+            )
+        )
+
+    return -(a := bisection(f, n, n)) + bisection(lambda x: f(x) + 1, a, a)
+
+
+def A119241(n):
+    def f(x):
+        return int(
+            sum(
+                isqrt(x // k**3)
+                for k in range(1, integer_nthroot(x, 3)[0] + 1)
+                if all(d <= 1 for d in factorint(k).values())
+            )
+        )
+
+    return f((n + 1) ** 2 - 1) - f(n**2)
+
+
+def A180114(n):
+    def f(x):
+        return int(
+            n
+            + x
+            - sum(
+                isqrt(x // k**3)
+                for k in range(1, integer_nthroot(x, 3)[0] + 1)
+                if all(d <= 1 for d in factorint(k).values())
+            )
+        )
+
+    return divisor_sigma(bisection(f, n, n))
+
+
+def A258599(n):
+    m = prime(n) ** 2
+    return int(
+        sum(
+            isqrt(m // k**3)
+            for k in range(1, integer_nthroot(m, 3)[0] + 1)
+            if all(d <= 1 for d in factorint(k).values())
+        )
+    )
+
+
+def A258567(n):
+    if n == 1:
+        return 1
+
+    def f(x):
+        return int(
+            n
+            + x
+            - sum(
+                isqrt(x // k**3)
+                for k in range(1, integer_nthroot(x, 3)[0] + 1)
+                if all(d <= 1 for d in factorint(k).values())
+            )
+        )
+
+    return min(primefactors(bisection(f, n, n)))
+
+
+def A361936(n):
+    m = n**2
+    return int(
+        sum(
+            isqrt(m // k**3)
+            for k in range(1, integer_nthroot(m, 3)[0] + 1)
+            if all(d <= 1 for d in factorint(k).values())
+        )
+    )
+
+
+def A078147(n):
+    def f(x):
+        return n + sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
+
+    m = iterfun(f, n)
+    return next(i for i in range(1, 5) if any(d > 1 for d in factorint(m + i).values()))
+
+
+def A374291(n):
+    def f(x):
+        return int(
+            n
+            + x
+            - sum(
+                isqrt(x // k**3)
+                for k in range(1, integer_nthroot(x, 3)[0] + 1)
+                if all(d <= 1 for d in factorint(k).values())
+            )
+        )
+
+    return bisection(f, n, n) ** 2
+
+
+def A373549(n):
+    def f(x):
+        return int(
+            n
+            + x
+            - sum(
+                isqrt(x // k**3)
+                for k in range(1, integer_nthroot(x, 3)[0] + 1)
+                if all(d <= 1 for d in factorint(k).values())
+            )
+        )
+
+    return bisection(f, n, n) & 1
+
+
+def A118896(n):
+    m, c, l = 10**n, 0, 0
+    j = isqrt(m)
+    while j > 1:
+        k2 = integer_nthroot(m // j**2, 3)[0] + 1
+        w = squarefreepi(k2 - 1)
+        c += j * (w - l)
+        l, j = w, isqrt(m // k2**3)
+    c += squarefreepi(integer_nthroot(m, 3)[0]) - l
+    return c
+
+
+def A052486(n):
+    def f(x):
+        c, l = n + x + 1, 0
+        j = isqrt(x)
+        while j > 1:
+            k2 = integer_nthroot(x // j**2, 3)[0] + 1
+            w = squarefreepi(k2 - 1)
+            c -= j * (w - l)
+            l, j = w, isqrt(x // k2**3)
+        c -= (
+            squarefreepi(integer_nthroot(x, 3)[0])
+            - l
+            + sum(
+                mobius(k) * (integer_nthroot(x, k)[0] - 1)
+                for k in range(2, x.bit_length())
+            )
+        )
+        return c
+
+    return bisection(f, n, n)
+
+
+def A036966(n):
+    def f(x):
+        c = n + x
+        for w in range(1, integer_nthroot(x, 5)[0] + 1):
+            if all(d <= 1 for d in factorint(w).values()):
+                for y in range(1, integer_nthroot(z := x // w**5, 4)[0] + 1):
+                    if gcd(w, y) == 1 and all(d <= 1 for d in factorint(y).values()):
+                        c -= integer_nthroot(z // y**4, 3)[0]
+        return c
+
+    return bisection(f, n, n)
+
+
+def A247246(n):
+    def f(x):
+        c, l = n + x + 1, 0
+        j = isqrt(x)
+        while j > 1:
+            k2 = integer_nthroot(x // j**2, 3)[0] + 1
+            w = squarefreepi(k2 - 1)
+            c -= j * (w - l)
+            l, j = w, isqrt(x // k2**3)
+        c -= (
+            squarefreepi(integer_nthroot(x, 3)[0])
+            - l
+            + sum(
+                mobius(k) * (integer_nthroot(x, k)[0] - 1)
+                for k in range(2, x.bit_length())
+            )
+        )
+        return c
+
+    return -(a := bisection(f, n, n)) + bisection(lambda x: f(x) + 1, a, a)
+
+
+def A036967(n):
+    def f(x):
+        c = n + x
+        for u in range(1, integer_nthroot(x, 7)[0] + 1):
+            if all(d <= 1 for d in factorint(u).values()):
+                for w in range(1, integer_nthroot(a := x // u**7, 6)[0] + 1):
+                    if gcd(w, u) == 1 and all(d <= 1 for d in factorint(w).values()):
+                        for y in range(1, integer_nthroot(z := a // w**6, 5)[0] + 1):
+                            if (
+                                gcd(w, y) == 1
+                                and gcd(u, y) == 1
+                                and all(d <= 1 for d in factorint(y).values())
+                            ):
+                                c -= integer_nthroot(z // y**5, 4)[0]
+        return c
+
+    return bisection(f, n, n)
+
+
+def A069492(n):
+    def f(x):
+        c = n + x
+        for t in range(1, integer_nthroot(x, 9)[0] + 1):
+            if all(d <= 1 for d in factorint(t).values()):
+                for u in range(1, integer_nthroot(s := x // t**9, 8)[0] + 1):
+                    if gcd(t, u) == 1 and all(d <= 1 for d in factorint(u).values()):
+                        for w in range(1, integer_nthroot(a := s // u**8, 7)[0] + 1):
+                            if (
+                                gcd(u, w) == 1
+                                and gcd(t, w) == 1
+                                and all(d <= 1 for d in factorint(w).values())
+                            ):
+                                for y in range(
+                                    1, integer_nthroot(z := a // w**7, 6)[0] + 1
+                                ):
+                                    if (
+                                        gcd(w, y) == 1
+                                        and gcd(u, y) == 1
+                                        and gcd(t, y) == 1
+                                        and all(d <= 1 for d in factorint(y).values())
+                                    ):
+                                        c -= integer_nthroot(z // y**6, 5)[0]
+        return c
+
+    return bisection(f, n, n)
+
+
+def A069493(n):
+    def f(x):
+        c = n + x
+        for y1 in range(1, integer_nthroot(x, 11)[0] + 1):
+            if all(d <= 1 for d in factorint(y1).values()):
+                for y2 in range(1, integer_nthroot(z2 := x // y1**11, 10)[0] + 1):
+                    if gcd(y2, y1) == 1 and all(d <= 1 for d in factorint(y2).values()):
+                        for y3 in range(
+                            1, integer_nthroot(z3 := z2 // y2**10, 9)[0] + 1
+                        ):
+                            if (
+                                gcd(y3, y1) == 1
+                                and gcd(y3, y2) == 1
+                                and all(d <= 1 for d in factorint(y3).values())
+                            ):
+                                for y4 in range(
+                                    1, integer_nthroot(z4 := z3 // y3**9, 8)[0] + 1
+                                ):
+                                    if (
+                                        gcd(y4, y1) == 1
+                                        and gcd(y4, y2) == 1
+                                        and gcd(y4, y3) == 1
+                                        and all(d <= 1 for d in factorint(y4).values())
+                                    ):
+                                        for y5 in range(
+                                            1,
+                                            integer_nthroot(z5 := z4 // y4**8, 7)[0]
+                                            + 1,
+                                        ):
+                                            if (
+                                                gcd(y5, y1) == 1
+                                                and gcd(y5, y2) == 1
+                                                and gcd(y5, y3) == 1
+                                                and gcd(y5, y4) == 1
+                                                and all(
+                                                    d <= 1
+                                                    for d in factorint(y5).values()
+                                                )
+                                            ):
+                                                c -= integer_nthroot(z5 // y5**7, 6)[0]
+        return c
+
+    return bisection(f, n, n)
+
+
+def A286708(n):
+    def f(x):
+        c, l = n + x, 0
+        j = isqrt(x)
+        while j > 1:
+            k2 = integer_nthroot(x // j**2, 3)[0] + 1
+            w = squarefreepi(k2 - 1)
+            c -= j * (w - l)
+            l, j = w, isqrt(x // k2**3)
+        c -= squarefreepi(integer_nthroot(x, 3)[0]) - l
+        return (
+            c
+            + 1
+            + sum(primepi(integer_nthroot(x, k)[0]) for k in range(2, x.bit_length()))
+        )
+
+    return bisection(f, n, n)
+
+
+def A358173(n):
+    def f(x):
+        c, l = (
+            n
+            + x
+            + 1
+            + sum(primepi(integer_nthroot(x, k)[0]) for k in range(2, x.bit_length())),
+            0,
+        )
+        j = isqrt(x)
+        while j > 1:
+            k2 = integer_nthroot(x // j**2, 3)[0] + 1
+            w = squarefreepi(k2 - 1)
+            c -= j * (w - l)
+            l, j = w, isqrt(x // k2**3)
+        c -= squarefreepi(integer_nthroot(x, 3)[0]) - l
+        return c
+
+    return -(a := bisection(f, n, n)) + bisection(lambda x: f(x) + 1, a, a)
+
+
+def A203663_gen():  # generator of terms
+    return map(
+        lambda x: x[0],
+        filter(
+            lambda x: all(d > 1 for d in x[1]) and gcd(*x[1]) == 1,
+            map(
+                lambda x: (x, factorint(x << 1).values()),
+                (A052486(i) for i in count(1)),
+            ),
+        ),
+    )
+
+
+def A194085_gen():  # generator of terms
+    return map(
+        lambda x: x[0],
+        filter(
+            lambda x: all(d > 1 for d in x[1]) and gcd(*x[1]) == 1,
+            map(
+                lambda x: (x, factorint(totient(x)).values()),
+                (A052486(i) for i in count(1)),
+            ),
+        ),
+    )
+
+
+def A138836(n):
+    return (
+        n
+        + (k := int(primepi((n).bit_length()) - 1))
+        + int(n + k + 1 >= 1 << prime(k + 1))
+        if n > 1
+        else 1
+    )
+
+
+def A066343(n):
+    return (5**n).bit_length() + n - 1
+
+
+def A066344(n):
+    return integer_log(1 << n, 5)[0] + n
+
+
+def A129344(n):
+    return -(m := 5 ** (n - 1)).bit_length() + (5 * m).bit_length() + 1 if n > 1 else 4
+
+
+def A337736(n):
+    def f(x):
+        c = 0
+        for w in range(1, integer_nthroot(x, 5)[0] + 1):
+            if all(d <= 1 for d in factorint(w).values()):
+                for y in range(1, integer_nthroot(z := x // w**5, 4)[0] + 1):
+                    if gcd(w, y) == 1 and all(d <= 1 for d in factorint(y).values()):
+                        c += integer_nthroot(z // y**4, 3)[0]
+        return c
+
+    return f((n + 1) ** 3 - 1) - f(n**3)
+
+
+def A360841_gen():  # generator of terms
+    def f(x):
+        c = x
+        for u in range(1, integer_nthroot(x, 7)[0] + 1):
+            if all(d <= 1 for d in factorint(u).values()):
+                for w in range(1, integer_nthroot(a := x // u**7, 6)[0] + 1):
+                    if gcd(w, u) == 1 and all(d <= 1 for d in factorint(w).values()):
+                        for y in range(1, integer_nthroot(z := a // w**6, 5)[0] + 1):
+                            if (
+                                gcd(w, y) == 1
+                                and gcd(u, y) == 1
+                                and all(d <= 1 for d in factorint(y).values())
+                            ):
+                                c -= integer_nthroot(z // y**5, 4)[0]
+        return c
+
+    a = 1
+    for i in count(0):
+        a = bisection(lambda x: f(x) + i, a, a)
+        if isprime(a - 1) and isprime(a + 1):
+            yield a
+
+
+def A372841(n):
+    def f(x):
+        c = (
+            n
+            + x
+            + 1
+            + sum(primepi(integer_nthroot(x, k)[0]) for k in range(4, x.bit_length()))
+        )
+        for u in range(1, integer_nthroot(x, 7)[0] + 1):
+            if all(d <= 1 for d in factorint(u).values()):
+                for w in range(1, integer_nthroot(a := x // u**7, 6)[0] + 1):
+                    if gcd(w, u) == 1 and all(d <= 1 for d in factorint(w).values()):
+                        for y in range(1, integer_nthroot(z := a // w**6, 5)[0] + 1):
+                            if (
+                                gcd(w, y) == 1
+                                and gcd(u, y) == 1
+                                and all(d <= 1 for d in factorint(y).values())
+                            ):
+                                c -= integer_nthroot(z // y**5, 4)[0]
+        return c
+
+    return bisection(f, n, n)
+
+
+def A375774(n):
+    return (
+        (
+            10,
+            27,
+            55,
+            85,
+            108,
+            119,
+            118,
+            108,
+            94,
+            78,
+            60,
+            46,
+            35,
+            27,
+            19,
+            14,
+            10,
+            7,
+            4,
+            2,
+            1,
+        )[n - 1]
+        if n < 22
+        else 0
+    )
+
+
+def A375706(n):
+    def f(x):
+        return int(
+            n
+            + 1
+            - sum(
+                mobius(k) * (integer_nthroot(x, k)[0] - 1)
+                for k in range(2, x.bit_length())
+            )
+        )
+
+    return -(a := iterfun(f, n)) + iterfun(lambda x: f(x) + 1, a)
+
+
+def A090946(n):
+    if n == 1:
+        return 0
+
+    def f(x):
+        if x <= 2:
+            return n
+        a, b, c = 1, 3, 0
+        while b <= x:
+            a, b = b, a + b
+            c += 1
+        return n + c
+
+    return iterfun(f, n)
+
+
+def A057854(n):
+    def f(x):
+        if x <= 2:
+            return n + 2
+        a, b, c = 1, 3, 0
+        while b <= x:
+            a, b = b, a + b
+            c += 1
+        return n + c + 2
+
+    return iterfun(f, n)
+
+
+def A000093(n):
+    return isqrt(n**3)
+
+
+def A077121(n):
+    return isqrt(n**3) + 1
+
+
+def A185543(n):
+    def f(x):
+        return n - 1 + (a := integer_nthroot((x + 1) ** 2, 3))[0] + (a[1] ^ 1)
+
+    return iterfun(f, n)
+
+
+def A269023(n):
+    def f(x):
+        if x == 1:
+            return n + 1
+        z = x**x
+        for y in count(x, -1):
+            if y ** (y + 1) <= z:
+                return n + y
+            z //= x
+
+    return bisection(f, n, n)
+
+
+def A138890(n):
+    def f(x):
+        if x <= 1:
+            return n + 1
+        a, b, c, d = 1, 1, 1, 0
+        while c <= x:
+            a, b, c = b, c, a + b
+            d += 1
+        return n + d - 1
+
+    return iterfun(f, n)
+
+
+def A376045(n):
+    def f(x):
+        c, l = 0, len(str(x))
+        for i in range(l):
+            k = 10**i
+            for j in (1, 2, 4, 5, 7, 8):
+                if j * k <= x:
+                    c += 1
+        for a in combinations((10**i for i in range(l)), 2):
+            for b in (
+                (1, 1),
+                (1, 4),
+                (1, 7),
+                (2, 2),
+                (2, 5),
+                (2, 8),
+                (4, 1),
+                (4, 4),
+                (4, 7),
+                (5, 2),
+                (5, 5),
+                (5, 8),
+                (7, 1),
+                (7, 4),
+                (7, 7),
+                (8, 2),
+                (8, 5),
+                (8, 8),
+            ):
+                if a[0] * b[0] + a[1] * b[1] <= x:
+                    c += 1
+        return n + c
+
+    return iterfun(f, n)
+
+
+def A325112(n):
+    def f(x):
+        c, l = 0, len(str(x))
+        for i in range(l):
+            k = 10**i
+            for j in (1, 2, 4, 5, 7, 8):
+                if j * k <= x:
+                    c += 1
+        for a in combinations((10**i for i in range(l)), 2):
+            for b in (
+                (1, 1),
+                (1, 4),
+                (1, 7),
+                (2, 2),
+                (2, 5),
+                (2, 8),
+                (4, 1),
+                (4, 4),
+                (4, 7),
+                (5, 2),
+                (5, 5),
+                (5, 8),
+                (7, 1),
+                (7, 4),
+                (7, 7),
+                (8, 2),
+                (8, 5),
+                (8, 8),
+            ):
+                if a[0] * b[0] + a[1] * b[1] <= x:
+                    c += 1
+        return n + x - c
+
+    return bisection(f, n, n)
+
+
+def A046388(n):
+    if n == 1:
+        return 15
+
+    def f(x):
+        return int(
+            n
+            - 1
+            + x
+            + (t := primepi(s := isqrt(x)))
+            + (t * (t - 1) >> 1)
+            - sum(primepi(x // k) for k in primerange(3, s + 1))
+        )
+
+    return iterfun(f, n)
+
+
+def A046389(n):
+    def f(x):
+        return int(
+            n
+            + x
+            - sum(
+                primepi(x // (k * m)) - b
+                for a, k in enumerate(primerange(3, integer_nthroot(x, 3)[0] + 1), 2)
+                for b, m in enumerate(primerange(k + 1, isqrt(x // k) + 1), a + 1)
+            )
+        )
+
+    return bisection(f, n, n)
+
+
+def A361075(n):
+    def g(x, a, b, c, m):
+        yield from (
+            ((d,) for d in enumerate(primerange(b + 1, isqrt(x // c) + 1), a + 1))
+            if m == 2
+            else (
+                ((a2, b2),) + d
+                for a2, b2 in enumerate(
+                    primerange(b + 1, integer_nthroot(x // c, m)[0] + 1), a + 1
+                )
+                for d in g(x, a2, b2, c * b2, m - 1)
+            )
+        )
+
+    def f(x):
+        return int(
+            n
+            + x
+            - sum(
+                primepi(x // prod(c[1] for c in a)) - a[-1][0] for a in g(x, 1, 2, 1, 7)
+            )
+        )
+
+    return bisection(f, n, n)
+
+
+def A168352(n):
+    def g(x, a, b, c, m):
+        yield from (
+            ((d,) for d in enumerate(primerange(b + 1, isqrt(x // c) + 1), a + 1))
+            if m == 2
+            else (
+                ((a2, b2),) + d
+                for a2, b2 in enumerate(
+                    primerange(b + 1, integer_nthroot(x // c, m)[0] + 1), a + 1
+                )
+                for d in g(x, a2, b2, c * b2, m - 1)
+            )
+        )
+
+    def f(x):
+        return int(
+            n
+            + x
+            - sum(
+                primepi(x // prod(c[1] for c in a)) - a[-1][0] for a in g(x, 1, 2, 1, 6)
+            )
+        )
+
+    return bisection(f, n, n)
