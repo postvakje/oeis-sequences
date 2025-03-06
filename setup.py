@@ -6,9 +6,9 @@ with open("requirements.txt", "r") as fh:
     requirements = [line.strip() for line in fh]
 
 setup(
-   name='OEISsequences',
+   name='oeissequences',
    python_requires='>= 3.8',
-   version='0.2.4.7',
+   version='0.2.4.8',
    author='Chai Wah Wu',
    author_email='cwwuieee@gmail.com',
    packages=find_packages(),
