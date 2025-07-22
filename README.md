@@ -70,4 +70,4 @@ print(list(islice(A235811_gen(startvalue=1475),10))) # print first 10 terms >= 1
 ```
 
 ## Utility functions
-The module also includes some utility functions for exploring integer sequences in OEIS such as palindrome generator, Boustrophedon transform, run length transform, Faulhaber's formula, lunar arithmetic, squarefree numbers, *k*-almost primes, squarefree *k*-almost primes, etc.
+The module also includes some utility functions for exploring integer sequences in OEIS such as palindrome generator, Boustrophedon transform, run length transform, Faulhaber's formula, lunar arithmetic, squarefree numbers, *k*-almost primes, squarefree *k*-almost primes, binomial coefficients modulo *m*, etc.

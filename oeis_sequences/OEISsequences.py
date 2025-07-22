@@ -58,7 +58,7 @@ Boustrophedon transform, run length transform, lunar arithmetic, etc.
 
 from __future__ import print_function, division
 import sys, bisect, re
-import sympy
+import sympy, itertools
 from functools import lru_cache, reduce
 from itertools import (
     islice,
@@ -155,6 +155,7 @@ from sympy import (
     mobius,
     kronecker_symbol,
     Mod,
+    rem,
 )
 from sympy.functions import hyper, euler
 from sympy.ntheory import (
@@ -573,7 +574,9 @@ def bisection(f, kmin=0, kmax=1):
     """bisection method to find fixed point of f"""
     while f(kmax) > kmax:
         kmax <<= 1
-    kmin = kmax >> 1
+    while f(kmin) < kmin:
+        kmin >>= 1
+    kmin = max(kmin, kmax >> 1)
     while kmax - kmin > 1:
         kmid = kmax + kmin >> 1
         if f(kmid) <= kmid:
@@ -680,6 +683,60 @@ def squarefree(n):
         return n + x - squarefreepi(x)
 
     return bisection(f, m := f(f(n)), m)
+
+
+def binom_mod_primepower(n, k, p, t):
+    """
+    binomial(n,k) mod p^t
+    based on Davis and Webb, 'Lucas' Theorem for Prime Powers', Europ. J. Combinatorics (1990) 11, 229-233.
+    """
+
+    def l2i(s, p):  # convert list of digits in mod p representation to integer
+        c = 0
+        for d in s:
+            c = c * p + d
+        return c
+
+    def g1(s, w, e):
+        c, d = 1, 0
+        if len(s) == 0:
+            return c, d
+        a, b = l2i(s, p), l2i(w, p)
+        if a >= b:
+            k = comb(a, b) % q
+            j = multiplicity(p, k)
+            d += j * e
+            k = k // p**j
+            c = c * pow(k, e, q) % q
+        else:
+            if l2i(s[0:1], p) < l2i(w[0:1], p):
+                d += e
+            c0, d0 = g1(s[1:], w[1:], e)
+            c = c * c0 % q
+            d += d0
+        return c, d
+
+    s, w = sympydigits(n, p)[1:], sympydigits(k, p)[1:]
+    if sum(w) + sum(sympydigits(n - k, p)[1:]) - sum(s) > (t - 1) * (p - 1):
+        return 0
+    s, q = [0] * (max(0, t - len(s))) + s, p**t
+    w = [0] * ((l := len(s)) - len(w)) + w
+    c, d = g1(s[:t], w[:t], 1)
+    for i in range(1, l - t + 1):
+        c0, d0 = g1(s[i : i + t], w[i : i + t], 1)
+        c1, d1 = g1(s[i : i + t - 1], w[i : i + t - 1], -1)
+        c = c * c0 * c1 % q
+        d += d0 + d1
+    return c * p**d % q
+
+
+def binom_mod(n, k, m):
+    """binomial(n,k) mod m"""
+    f = factorint(m)
+    ps = list(f.keys())
+    return crt(
+        [p ** f[p] for p in ps], [binom_mod_primepower(n, k, p, f[p]) for p in ps]
+    )[0]
 
 
 """ Lunar arithmetic """
@@ -2235,9 +2292,9 @@ def A002088(n):  # based on second formula in A018805
     k1 = n // j
     while k1 > 1:
         j2 = n // k1 + 1
-        c += (j2 - j) * (2 * A002088(k1) - 1)
+        c += (j2 - j) * ((A002088(k1) << 1) - 1)
         j, k1 = j2, n // j2
-    return (n * (n - 1) - c + j) // 2
+    return n * (n - 1) - c + j >> 1
 
 
 def A045917(n):
@@ -30990,7 +31047,7 @@ def A118175(n):
 
 
 def A000194(n):
-    return (m := isqrt(n)) + int(n - m * (m + 1) >= 1)
+    return (m := isqrt(n)) + int(n > m * (m + 1))
 
 
 def A027664(n):
@@ -33095,20 +33152,6 @@ def A060432(n):
     return (
         k := (r := isqrt(m := n + 1 << 1)) + int((m << 2) > (r << 2) * (r + 1) + 1) - 1
     ) * (k * (-k - 3) + 6 * n - 2) // 6 + n
-
-
-def A204248(n):
-    return (
-        sum(
-            stirling(n, n - k, kind=1)
-            * stirling(n + 1, k + 1, kind=1)
-            * factorial(n - k)
-            * factorial(k)
-            for k in range(n)
-        )
-        if n
-        else 1
-    )
 
 
 def A064520(n):
@@ -58062,7 +58105,7 @@ def A140823(n):
 
 
 def A000037(n):
-    return n + (k := isqrt(n)) + int(n >= k * (k + 1) + 1)
+    return n + (k := isqrt(n)) + int(n > k * (k + 1))
 
 
 def A014132(n):
@@ -58172,10 +58215,6 @@ def A057211(n):
 
 def A057212(n):
     return int(not isqrt(n << 3) + 1 & 2)
-
-
-def A070169(n):
-    return (m := isqrt(k := 3 * n**4)) + (k - m * (m + 1) >= 1)
 
 
 def A216124_gen(startvalue=3):  # generator of terms >= startvalue
@@ -67378,6 +67417,10 @@ def A031216(n):
 
 def A120041(n):
     return -almostprimepi(m := 1 << n, 10) + almostprimepi(m << 1, 10)
+
+
+def A120042(n):
+    return -almostprimepi(m := 1 << n, 11) + almostprimepi(m << 1, 11)
 
 
 def A120043(n):
@@ -84841,21 +84884,33 @@ def A083093(n):
 
 
 def A095143(n):
-    g1 = {(0, 0): 0, (1, 0): 0, (1, 1): 6, (2, 0): 0, (2, 1): 3, (2, 2): 0}
-    g2 = {(0, 0): 0, (1, 0): 6, (1, 1): -6, (2, 0): 0, (2, 1): 0, (2, 2): 0}
-
-    def f(m, k):
-        if m < 3 and k < 3:
-            return comb(m, k) % 9
-        c, a = divmod(m, 3)
-        d, b = divmod(k, 3)
-        if b > a:
-            return comb(m, k) % 9
-        return (f(c, d) * f(a, b) * (2 + c * g1[(a, b)] + d * g2[(a, b)]) >> 1) % 9
-
-    return f(
-        r := (m := isqrt(k := n + 1 << 1)) - (k <= m * (m + 1)), n - comb(r + 1, 2)
-    )
+    g = (m := isqrt(f := n + 1 << 1)) - (f <= m * (m + 1))
+    k = n - comb(g + 1, 2)
+    if (
+        sum(int(d) for d in gmpy2digits(k, 3))
+        + sum(int(d) for d in gmpy2digits(g - k, 3))
+        - sum(int(d) for d in gmpy2digits(g, 3))
+        > 2
+    ):
+        return 0
+    s, c, d = gmpy2digits(g, 3), 1, 0
+    w = (gmpy2digits(k, 3)).zfill(l := len(s))
+    if l == 1:
+        return comb(g, k) % 9
+    for i in range(0, l - 1):
+        r, t = s[i : i + 2], w[i : i + 2]
+        if (x := int(r, 3)) < (y := int(t, 3)):
+            d += (t[0] > r[0]) + (t[1] > r[1])
+            if r[1] >= t[1]:
+                c = c * comb(int(r[1], 3), int(t[1], 3)) % 9
+        else:
+            c = c * comb(x, y) % 9
+    for i in range(1, l - 1):
+        if w[i] > s[i] or (z := comb(int(s[i], 3), int(w[i], 3))) == 3:
+            d -= 1
+        else:
+            c = c * pow(z, -1, 9) % 9
+    return c * 3**d % 9
 
 
 def A368077_gen():  # generator of terms
@@ -85630,3 +85685,1935 @@ def A135291(n):
     return prod(
         sum((Counter(factorint(i)) for i in range(2, n + 1)), start=Counter()).values()
     )
+
+
+def A384441(n):
+    return reduce(xor, primefactors(n), n)
+
+
+def A293212(n):
+    return reduce(xor, primefactors(n))
+
+
+def A178910(n):
+    return reduce(xor, divisors(n, generator=True))
+
+
+def A384531(n):
+    return prod(
+        (((m := e << 1) | 1) * p - m) * p ** (e - 1) for p, e in factorint(n).items()
+    )
+
+
+def A384554(n):
+    return prod(
+        (1, p + 1, p**2 + 1, p * (p + 1) + 1)[e & 3] for p, e in factorint(n).items()
+    )
+
+
+def A384556(n):
+    return prod(p * (1 + p * (e & 1 ^ 1)) for p, e in factorint(n).items())
+
+
+def A384569_gen():  # generator of terms
+    return accumulate(
+        repeat(1), lambda x, y: (3141592221 * x + y) % 10000000000, initial=1
+    )
+
+
+def A384354_gen(startvalue=1):  # generator of terms >= startvalue
+    for k in count(max(startvalue, 1)):
+        if isprime(k):
+            yield k
+        else:
+            f = factorint(k).items()
+            if (
+                not (k + 1)
+                * prod((p - 1) * (e + 1) for p, e in f)
+                % prod(p ** (e + 1) - 1 for p, e in f)
+            ):
+                yield k
+
+
+def A384493_gen(startvalue=1):  # generator of terms >= startvalue
+    for k in count(max(startvalue, 1)):
+        if k > 1 and not isprime(k):
+            f = factorint(k).items()
+            if (
+                not (k + 1)
+                * prod((p - 1) * (e + 1) for p, e in f)
+                % prod(p ** (e + 1) - 1 for p, e in f)
+            ):
+                yield k
+
+
+def A384500_gen(startvalue=1):  # generator of terms >= startvalue
+    return filter(
+        lambda k: (len(factorint(k)) & 1) ^ (k & 1), count(max(startvalue, 1))
+    )
+
+
+def A375166_gen():  # generator of terms
+    for i in count(0, 9):
+        for j in (0, 1, 4, 7):
+            if not is_square(i + j):
+                yield i + j
+
+
+def A094784(n):
+    def f(x):
+        return n + isqrt(x) + integer_nthroot(x, 3)[0] - integer_nthroot(x, 6)[0]
+
+    return iterfun(f, n)
+
+
+def A061704(n):
+    return prod(e // 3 + 1 for e in factorint(n).values())
+
+
+def A291208(n):
+    f = factorint(n).values()
+    return prod(e + 1 for e in f) - prod(e // 3 + 1 for e in f)
+
+
+def A074451(n):
+    def f(x):
+        return (
+            n
+            - 1
+            + (m := integer_nthroot(x, 3)[0])
+            + sum(mobius(k) * (x // k**3) for k in range(1, m + 1))
+        )
+
+    return bisection(f, n, n)
+
+
+def A095686(n):
+    return divisor_count(n + (k := isqrt(n)) + int(n > k * (k + 1))) >> 1
+
+
+def A112045(n):
+    return (p := prime(n)) - isqrt(p)
+
+
+def A179125(n):
+    return (n + (k := isqrt(n)) + int(n > k * (k + 1))) ** 3
+
+
+def A002734(n):
+    k = isqrt(n)
+    return prod(p for p, e in factorint(n + k + int(n > k * (k + 1))).items() if e & 1)
+
+
+def A122197(n):
+    return (
+        1
+        if n <= 1
+        else 1 + ((n - 1) % ((m := isqrt(n - 1)) + int(n - 1 > m * (m + 1))))
+    )
+
+
+def A070169(n):
+    return (m := isqrt(k := 3 * n**4)) + int(k > m * (m + 1))
+
+
+def A071396(n):
+    return (m := isqrt(k := 3 * n**4 << 2)) + int(k > m * (m + 1))
+
+
+def A071398(n):
+    return (m := isqrt(k := 75 * n**4)) + int(k > m * (m + 1))
+
+
+def A080344(n):
+    return (
+        n + 1 - (k := (m := isqrt(n + 1)) + int(n >= m * (m + 1))) - abs(n + 1 - k**2)
+        >> 1
+    )
+
+
+def A056847(n):
+    return n - (m := isqrt(n)) - int(n > m * (m + 1))
+
+
+def A228056(n):
+    def f(x):
+        return n + x - sum(primepi(x // y**2) for y in range(2, isqrt(x) + 1))
+
+    return bisection(f, n, n)
+
+
+def A384210(n):
+    return sum(primepi(n // y**2) for y in range(1, isqrt(n) + 1))
+
+
+def A060018(n):
+    return isqrt(n - 2 << 2)
+
+
+def A060019(n):
+    return isqrt(prime(n) - 2 << 2)
+
+
+def A053187(n):
+    return ((m := isqrt(n)) + int(n > m * (m + 1))) ** 2
+
+
+def A074294(n):
+    return n + (k := (m := isqrt(n)) + (n > m * (m + 1))) * (1 - k)
+
+
+def A179753(n):
+    return (k := (m := isqrt(n)) + (n > m * (m + 1))) * (1 + k) - n
+
+
+def A111650(n):
+    return isqrt(n << 3) + 1 & -2
+
+
+def A111652(n):
+    return (m := isqrt(n << 3) + 1 & -2) + (m >> 1)
+
+
+def A358769(n):
+    return int(sum(e & 1 for e in factorint(n).values()) == 1)
+
+
+def A105209(n):
+    return (m := integer_nthroot(n, 3)[0]) + ((n << 3) >= ((m << 1) + 1) ** 3)
+
+
+def A048766(n):
+    return integer_nthroot(n, 3)[0]
+
+
+def A339276(n):
+    return (m := integer_nthroot(n, 4)[0]) + ((n << 4) >= ((m << 1) + 1) ** 4)
+
+
+def A255270(n):
+    return integer_nthroot(n, 4)[0]
+
+
+def A178487(n):
+    return integer_nthroot(n, 5)[0]
+
+
+def A132336(n):
+    return (
+        n * (n + 1)
+        - (m := integer_nthroot(n, 5)[0]) ** 2
+        * (m**2 * (m * (m + 3 << 1) + 5) - 1)
+        // 6
+        >> 1
+    )
+
+
+def A330153(n):
+    a = (h := harmonic(n)).p - (b := h.q)
+    return (m := integer_nthroot(n**a, b)[0]) + ((n**a << b) >= ((m << 1) + 1) ** b)
+
+
+def A306904(n):
+    return (m := int(integer_nthroot(f := int(factorial(n)), n)[0])) + int(
+        (f << n) >= ((m << 1) + 1) ** n
+    )
+
+
+def A128217_gen(startvalue=0):  # generator of terms >= startvalue
+    return filter(
+        lambda n: (m := n << 4) < (k := (isqrt(n) << 2) + 1) ** 2 or m > (k + 2) ** 2,
+        count(max(startvalue, 0)),
+    )
+
+
+def A005369(n):
+    return int(is_square((n << 2) | 1))
+
+
+def A035214(n):
+    return int(is_square((n << 3) | 1)) + 1
+
+
+def A035254(n):
+    return n + (isqrt(n << 3) - 5 >> 1)
+
+
+def A035253(n):
+    return (
+        (k := (r := isqrt(m := n << 1)) + int((m << 2) > (r << 2) * (r + 1) + 1) - 1)
+        * (k * (-k - 3) + 6 * n - 8)
+        // 6
+        + (n * (n - 5) >> 1)
+        + 3
+    )
+
+
+def A083920(n):
+    return n - (k := isqrt(m := n + 1 << 1)) + ((m >= k * (k + 1) + 1) ^ 1)
+
+
+def A265939(n):
+    return (3 << (m := n << 1)) - comb(m, n) >> 1
+
+
+def A332026(n):
+    return (isqrt(m := n << 3) + 1 >> 1) + is_square(m - 7) + 1
+
+
+def A332027(n):
+    return (
+        (
+            k := (r := isqrt(m := n + 1 << 1))
+            + int((m << 2) > (r << 2) * (r + 1) + 1)
+            - 1
+        )
+        * (6 * n - 2 - k * (k + 3))
+        // 6
+        + (isqrt(n << 3) + 1 >> 1)
+        + (n << 1)
+    )
+
+
+def A332028(n):
+    return (
+        (
+            k := (r := isqrt(m := n + 1 << 1))
+            + int((m << 2) > (r << 2) * (r + 1) + 1)
+            - 1
+        )
+        * (6 * n - 2 - k * (k + 3))
+        // 6
+        + (isqrt(n << 3) + 1 >> 1)
+        + n
+        if n > 1
+        else 3
+    )
+
+
+def A006463(n):
+    return (m := isqrt((n << 3) + 1) - 1 >> 1) * (6 * n - 2 - m * (m + 3)) // 6
+
+
+def A340520(n):
+    return (m := isqrt((n << 3) + 1) - 1 >> 1) * (6 * n - 2 - m * (m + 3)) // 3 | 1
+
+
+def A347737(n):
+    return (
+        (r := isqrt((n + 1 << 3) + 1) - 1 >> 1) * (6 * n + 4 - r * (r + 3)) // 6
+        - ((t := isqrt(m := n >> 1)) + (s := isqrt(n))) * (t - s)
+        - (
+            sum(n // k for k in range(1, s + 1)) - sum(m // k for k in range(1, t + 1))
+            << 1
+        )
+    )
+
+
+def A327629(n):
+    return sum(n // d for d in divisors(n, generator=True) if is_square((d << 3) + 1))
+
+
+def A112886_gen(startvalue=1):  # generator of terms >= startvalue
+    return filter(
+        lambda n: all(
+            d == 1 or not is_square((d << 3) + 1) for d in divisors(n, generator=True)
+        ),
+        count(max(startvalue, 1)),
+    )
+
+
+def A132895_gen(startvalue=2):  # generator of terms >= startvalue
+    return filter(
+        lambda n: all(
+            d == 1 or not is_square((d << 3) + 1)
+            for d in divisors(n >> 1, generator=True)
+        ),
+        count(max(startvalue + (startvalue & 1), 2), 2),
+    )
+
+
+def A236345(n):
+    return (
+        (isqrt(n**2 << 3) + 1 >> 1)
+        - (isqrt(n << 3) + 1 >> 1)
+        + abs(
+            n * (n - 1)
+            - comb((m2 := isqrt(k2 := n**2 << 1)) + (k2 > m2 * (m2 + 1)), 2)
+            + comb((m := isqrt(k := n << 1)) + (k > m * (m + 1)), 2)
+        )
+    )
+
+
+def A360240(n):
+    return (
+        (m := integer_nthroot((n - 1 << 1) + 6, 3)[0]) + (n > 3 * comb(m + 2, 3))
+        if (a := n % 3) == 1
+        else (
+            (
+                k := isqrt(
+                    r := (b := (n - 1) // 3)
+                    + 1
+                    - comb(
+                        (m := integer_nthroot((n - 1 << 1) - 1, 3)[0])
+                        - (b < comb(m + 2, 3))
+                        + 2,
+                        3,
+                    )
+                    << 1
+                )
+            )
+            + ((r << 2) > (k << 2) * (k + 1) + 1)
+            if a == 2
+            else 1
+            + (
+                r := (b := (n - 1) // 3)
+                - comb(
+                    (m := integer_nthroot((n - 1 << 1) - 3, 3)[0])
+                    + (b >= comb(m + 2, 3))
+                    + 1,
+                    3,
+                )
+            )
+            - comb((k := isqrt(m := r + 1 << 1)) + (m > k * (k + 1)), 2)
+        )
+    )
+
+
+def A306562(n):
+    return 1 + sum((k if isqrt(k - 1 << 3) + 1 & 2 else -k) for k in range(2, n + 2))
+
+
+def A019298(n):
+    return n * (n * (2 * n + 3) + 2) + 3 >> 3
+
+
+def A384449_gen():  # generator of terms
+    for i in count(1):
+        if isprime(m := int(gmpy2digits(i, 3).replace("1", "4").replace("2", "7"))):
+            yield m
+
+
+def A127899(n):
+    return (
+        -((isqrt(n << 3) + 1 >> 1) ** 2)
+        + (m := isqrt(n + 1 << 3) + 1 >> 1) * ((m << 1) - 1)
+        + (k := isqrt(n + 2 << 3) + 1 >> 1) * (1 - k)
+        >> 1
+    )
+
+
+def A010751(n):
+    return n - (m**2 >> 1) if (m := isqrt(n + 1 << 3) + 1 >> 1) & 1 else (m**2 >> 1) - n
+
+
+def A005145(n):
+    return prime(isqrt(n << 3) + 1 >> 1)
+
+
+def A075363(n):
+    return (isqrt(n << 3) + 1 >> 1) ** (
+        n - comb((m := isqrt(k := n << 1)) + (k > m * (m + 1)), 2)
+    )
+
+
+def A075364(n):
+    return isqrt(n ** (n + 1))
+
+
+def A190343(n):
+    return isqrt(n ** (n - 1))
+
+
+def A066642(n):
+    return isqrt(n**n)
+
+
+def A157454(n):
+    return (isqrt(n << 3) + 1 >> 1) - abs(
+        (k := n << 1) - ((m := isqrt(k)) + (k > m * (m + 1))) ** 2 - 1
+    )
+
+
+def A226057(n):
+    return factorial(n) * stirling(m := (n << 1) - 1, n, kind=1) // comb(m, n - 1)
+
+
+def A129505(n):
+    return stirling((n << 1) - 1, n, kind=1)
+
+
+def A204248(n):
+    return factorial(n) * stirling(m := (n << 1) + 1, n + 1, kind=1) // comb(m, n)
+
+
+def A204022(n):
+    return (m := isqrt(n << 3) + 1 >> 1) + abs(m**2 - (n << 1) + 1)
+
+
+def A209302(n):
+    return (k := (m := isqrt(n)) + (n - m * (m + 1) >= 1)) + abs(k**2 - n)
+
+
+def A076112(n):
+    return (isqrt(n << 3) + 1 >> 1) ** (
+        n - comb((m := isqrt(k := n << 1)) + (k > m * (m + 1)), 2) - 1
+    )
+
+
+def A238685(n):
+    return factorial(n) * stirling((n << 1) - 1, n, kind=1, signed=True)
+
+
+def A348084(n):
+    return stirling(3 * n, 2 * n)
+
+
+def A007820(n):
+    return stirling(n << 1, n)
+
+
+def A066182(n):
+    return (
+        -1 + n + comb(isqrt(n << 3) + 3 >> 1, 2) - comb(isqrt(n - 1 << 3) + 3 >> 1, 2)
+    )
+
+
+if hasattr(itertools, "pairwise"):
+
+    def A007862(n):
+        return sum(1 for a, b in pairwise(divisors(n << 1)) if a + 1 == b)
+
+    def A129308(n):
+        return 0 if n & 1 else sum(1 for a, b in pairwise(divisors(n)) if a + 1 == b)
+
+    def A195155(n):
+        return (
+            1 if n & 1 else 1 + sum(1 for a, b in pairwise(divisors(n)) if a + 1 == b)
+        )
+
+else:
+
+    def A007862(n):
+        divs = divisors(n << 1)
+        return sum(1 for i, d in enumerate(divs[:-1]) if d + 1 == divs[i + 1])
+
+    def A129308(n):
+        if n & 1:
+            return 0
+        divs = divisors(n)
+        return sum(1 for i, d in enumerate(divs[:-1]) if d + 1 == divs[i + 1])
+
+    def A195155(n):
+        if n & 1:
+            return 1
+        divs = divisors(n)
+        return 1 + sum(1 for i, d in enumerate(divs[:-1]) if d + 1 == divs[i + 1])
+
+
+def A140756(n):
+    return (
+        comb(r, 2) - n
+        if comb((r := (m := isqrt(k := n << 1)) + (k > m * (m + 1))) + 1, 2) - n & 1
+        else n - comb(r, 2)
+    )
+
+
+def A140757(n):
+    return (
+        ((a - 1) ** 2 >> 2) + (c >> 1)
+        if (c := (a := (m := isqrt(k := n << 1)) + (k > m * (m + 1))) - n + comb(a, 2))
+        & 1
+        else ((a + 1) ** 2 >> 2) - (c >> 1)
+    )
+
+
+def A127773(n):
+    return n if is_square((n << 3) + 1) else 0
+
+
+def A127774(n):
+    return (
+        (a := (m := isqrt(k := n << 1)) + (k > m * (m + 1))) * (a + 1) * (a + 2) // 6
+        if is_square((n << 3) + 1)
+        else 0
+    )
+
+
+def A127648(n):
+    return (
+        (m := isqrt(k := n << 1)) + (k > m * (m + 1)) if is_square((n << 3) + 1) else 0
+    )
+
+
+def A038567(n):
+    kmin, kmax = 0, 1
+    while A002088(kmax) <= n:
+        kmax <<= 1
+    kmin = kmax >> 1
+    while True:
+        kmid = kmax + kmin >> 1
+        if A002088(kmid) > n:
+            kmax = kmid
+        else:
+            kmin = kmid
+        if kmax - kmin <= 1:
+            break
+    return kmax
+
+
+def A008483(n):
+    return partition(n) - partition(n - 1) - partition(n - 2) + partition(n - 3)
+
+
+def A384785(n):
+    return prod(A008483(e) for e in factorint(A036966(n)).values())
+
+
+def A188585(n):
+    return prod(partition(e) - partition(e - 1) for e in factorint(n).values())
+
+
+def A384783(n):
+    return A188585(A001694(n))
+
+
+def A056942(n):
+    return (isqrt(n << 3) + 1 >> 1) * (
+        (k := isqrt(m := n + 1 << 1)) - ((m >= k * (k + 1) + 1) ^ 1)
+    )
+
+
+def A056943(n):
+    return (isqrt(n << 3) + 1 >> 1) * (
+        (k := isqrt(m := n + 1 << 1)) - ((m >= k * (k + 1) + 1) ^ 1)
+    ) - n
+
+
+def A056944(n):
+    return (n << 1) - (isqrt(n << 3) + 1 >> 1) * (
+        (k := isqrt(m := n + 1 << 1)) - ((m >= k * (k + 1) + 1) ^ 1)
+    )
+
+
+def A384667(n):
+    e = list(factorint(n).values())
+    return int(all(e[0] == a for a in e))
+
+
+def A384618_gen():  # generator of terms
+    p, q, r = 2, 3, 5
+    while True:
+        s, t = q - p, r - q
+        if s > (t << 1) or t > (s << 1):
+            yield q
+        p, q, r = q, r, nextprime(r)
+
+
+def A384603_gen():  # generator of terms
+    p, q, r = 2, 3, 5
+    while True:
+        s, t = q - p, r - q
+        if s < (t << 1) and t < (s << 1):
+            yield q
+        p, q, r = q, r, nextprime(r)
+
+
+def A151821(n):
+    return 1 << n if n > 1 else 1
+
+
+def A000918(n):
+    return (1 << n) - 2
+
+
+def A384733(n):
+    return n * (n * (n * (n * (n * (n - 15) + 97) - 297) + 406) - 192) // 144
+
+
+def A384686(n):
+    return (
+        n * (n * (n * (n * (n - 4) - 1) + 16) - 12) // 3 << n - 7
+        if n > 6
+        else (0, 0, 0, 0, 6, 70, 480)[n]
+    )
+
+
+def A091538(n):
+    a = (m := isqrt(k := n + 1 << 1)) + (k > m * (m + 1))
+    r = n - comb(a, 2)
+    w = a - r
+    if r == 0:
+        return int(w == 1)
+    if r == 1:
+        return prime(w)
+
+    def g(x, a, b, c, m):
+        yield from (
+            ((d,) for d in enumerate(primerange(b, isqrt(x // c) + 1), a))
+            if m == 2
+            else (
+                ((a2, b2),) + d
+                for a2, b2 in enumerate(
+                    primerange(b, integer_nthroot(x // c, m)[0] + 1), a
+                )
+                for d in g(x, a2, b2, c * b2, m - 1)
+            )
+        )
+
+    def f(x):
+        return int(
+            w
+            + x
+            - sum(
+                primepi(x // prod(c[1] for c in a)) - a[-1][0] for a in g(x, 0, 1, 1, r)
+            )
+        )
+
+    return bisection(f, w, w)
+
+
+def A193576(n):
+    return n**3 * (n * (n * (n + 3) + 3) + 9) >> 3
+
+
+def A384666(n):
+    return len(
+        {
+            b**2 - (a * c << 2)
+            for b in range(n + 1)
+            for a in range(-n, n + 1)
+            for c in range(-n, a + 1)
+        }
+    )
+
+
+def A384469(n):
+    return (
+        sum(
+            1
+            for a in range(1, n + 1)
+            for c in range(1, a)
+            if ((m := a * c) << 2) <= n**2 and is_square(m)
+        )
+        << 1
+    ) + isqrt(n**2 >> 2)
+
+
+def A384868(n):
+    return comb(len(s := bin(n + 1)[3:]) + 1, 2) - (
+        sum(i for i, j in enumerate(s, 1) if j == "1") << 1
+    )
+
+
+def A384612(n):
+    i = 1
+    while True:
+        j = i**n
+        if len(str(j)) & 1:
+            i, flag = integer_nthroot(10 ** len(str(j)), n)
+            if not flag:
+                i += 1
+            j = i**n
+        m = len(s := str(j)) >> 1
+        if sorted(s[:m]) == sorted(s[m:]):
+            return i
+        i += 1
+
+
+def A003983(n):
+    a = (m := isqrt(k := n << 1)) + (k > m * (m + 1))
+    x = n - (a * (a - 1) >> 1)
+    return min(x, a - x + 1)
+
+
+def A107985(n):
+    a = (m := isqrt(k := n + 1 << 1)) + (k > m * (m + 1))
+    b = n - comb(a, 2)
+    return (b + 1) * (a + 1) * (a - b) >> 1
+
+
+def A236043(n):
+    return isqrt(10**n + 1 << 3) + 1 >> 1
+
+
+def A218036(n):
+    return ((m := isqrt((k := n << 1) << 2) + 1 >> 1) * (k + 3 - m**2) >> 1) + n + 1
+
+
+def A276349(n):
+    return 10 * (10 ** (m := isqrt(n << 3) + 1 >> 1) - 10 ** (comb(m + 1, 2) - n)) // 9
+
+
+def A384940(n):
+    if n & 1:
+        m = n + 1 >> 1
+
+        def f(x):
+            return int(
+                m
+                + x
+                + ((t := primepi(s := isqrt(x))) * (t - 1) >> 1)
+                - sum(primepi(x // k) for k in primerange(3, s + 1))
+            )
+
+        return bisection(f, m, m)
+    else:
+        return prime(n >> 1) << 1
+
+
+def A383593(n):
+    return (
+        (n if (t := bin(n)[2:].find("0")) == -1 else n + (1 << n.bit_length() - t - 1))
+        if n
+        else 1
+    )
+
+
+def A384628(n):
+    c, j = (n << 1) + 1, 2
+    k1 = n // j
+    while k1 > 1:
+        j2 = n // k1 + 1
+        c += (j2 - j) * gcd(n, k1)
+        j, k1 = j2, n // j2
+    return c - j
+
+
+def A002895(n):
+    return (
+        sum(
+            comb(n, k) ** 2 * comb(n - k << 1, n - k) * comb(k << 1, k)
+            for k in range(n + 1 >> 1)
+        )
+        << 1
+    ) + (0 if n & 1 else comb(n, n >> 1) ** 4)
+
+
+def A039699(n):
+    return comb(n << 1, n) * (
+        (
+            sum(
+                comb(n, k) ** 2 * comb(n - k << 1, n - k) * comb(k << 1, k)
+                for k in range(n + 1 >> 1)
+            )
+            << 1
+        )
+        + (0 if n & 1 else comb(n, n >> 1) ** 4)
+    )
+
+
+if hasattr(int, "bit_count"):
+
+    def A385087(n):
+        return (
+            ~(
+                a := (
+                    sum(
+                        comb(n, k) ** 2 * comb(n - k << 1, n - k) * comb(k << 1, k)
+                        for k in range(n + 1 >> 1)
+                    )
+                    << 1
+                )
+                + (0 if n & 1 else comb(n, n >> 1) ** 4)
+            )
+            & a - 1
+        ).bit_length() + n.bit_count()
+
+else:
+
+    def A385087(n):
+        return (
+            ~(
+                a := (
+                    sum(
+                        comb(n, k) ** 2 * comb(n - k << 1, n - k) * comb(k << 1, k)
+                        for k in range(n + 1 >> 1)
+                    )
+                    << 1
+                )
+                + (0 if n & 1 else comb(n, n >> 1) ** 4)
+            )
+            & a - 1
+        ).bit_length() + bin(n).count("1")
+
+
+def A185869(n):
+    a = (m := isqrt(k := n << 1)) + (k > m * (m + 1))
+    x = n - comb(a, 2)
+    y = a - x + 1
+    return y * ((y + (c := x << 1) << 1) - 5) + x * (c - 3) + 2
+
+
+def A185868(n):
+    a = (m := isqrt(k := n << 1)) + (k > m * (m + 1))
+    x = n - comb(a, 2)
+    y = a - x + 1
+    return y * ((y + (c := x << 1) << 1) - 7) + x * (c - 5) + 5
+
+
+def A185870(n):
+    a = (m := isqrt(k := n << 1)) + (k > m * (m + 1))
+    x = n - comb(a, 2)
+    y = a - x + 1
+    return y * ((y + (c := x << 1) << 1) - 5) + x * (c - 3) + 3
+
+
+def A185871(n):
+    a = (m := isqrt(k := n << 1)) + (k > m * (m + 1))
+    x = n - comb(a, 2)
+    y = a - x + 1
+    return y * ((y + (c := x << 1) << 1) - 3) + x * (c - 1) + 1
+
+
+def A266498(n):
+    return isqrt(3**n + 1 << 3) + 1 >> 1
+
+
+def A385082_gen():  # generator of terms
+    c = Counter({0: 1})
+    for n in count(0):
+        yield sum(i**2 for i in c.values())
+        c = sum(
+            (
+                Counter({i: j, (m := 1 << n) + i + 1: j, (m << 1) + i + 1: j})
+                for i, j in c.items()
+            ),
+            start=Counter(),
+        )
+
+
+def A010552(n):
+    return (a := (m := isqrt(k := n << 1)) + (k > m * (m + 1))) ** (
+        n - comb(a, 2)
+    ) * prod(i**i for i in range(2, a))
+
+
+def A094727(n):
+    return ((a := (m := isqrt(k := n << 1)) + (k > m * (m + 1))) * (3 - a) >> 1) + n - 1
+
+
+def A070216(n):
+    a = (m := isqrt(k := n << 1)) + (k > m * (m + 1))
+    return (a * (a * (a * (a - 2) - (m := n << 2) + 5) + m) >> 2) + n**2
+
+
+def A118416(n):
+    return (a := (m := isqrt(k := n << 1)) + (k > m * (m + 1))) * (1 - a) + (
+        n << 1
+    ) - 1 << a - 1
+
+
+def A118413(n):
+    a = (m := isqrt(k := n << 1)) + (k > m * (m + 1))
+    return ((a << 1) - 1) << n - comb(a, 2) - 1
+
+
+def A127948(n):
+    return (m := n << 1) - (isqrt(m << 2) + 1 >> 1) ** 2
+
+
+def A173786(n):
+    a = (m := isqrt(k := n + 1 << 1)) - (k <= m * (m + 1))
+    return (1 << a) + (1 << n - comb(a + 1, 2))
+
+
+def A384873(n):
+    m = nextprime((10**n - 1) // 9 - 1)
+    while "0" in str(m):
+        m = nextprime(m)
+    return m
+
+
+def A183136(n):
+    return sum(isqrt(5 * i**2) - i >> 1 for i in range(1, n + 1))
+
+
+def A385177(n):
+    return n + sum(isqrt(5 * i**2) - i >> 1 for i in range(1, n + 1))
+
+
+def A362791(n):
+    return (
+        (a := (m := isqrt(k := n << 1)) + (k > m * (m + 1)))
+        * (a - 1)
+        * (a - 2)
+        * stirling(n - comb(a, 2), 3)
+    )
+
+
+def A362685(n):
+    return (
+        (a := (m := isqrt(k := n << 1)) + (k > m * (m + 1)))
+        * (a - 1)
+        * stirling(n - comb(a, 2), 2)
+    )
+
+
+def A068605(n):
+    return n * (n - 1) * ((1 << n - 1) - 1)
+
+
+def A366429(n):
+    return (
+        isqrt(n - comb((m := isqrt(k := n + 1 << 1)) + (k > m * (m + 1)), 2) << 2 | 1)
+        + (r := (isqrt(k << 2) + 1 >> 1) - 1) * (r - 1)
+        - 1
+    )
+
+
+def A213083(n):
+    return (
+        (m := integer_nthroot(3 * n, 3)[0]) + (6 * n > m * (m + 1) * ((m << 1) + 1))
+    ) ** 2
+
+
+def A206224(n):
+    return (isqrt((n << 2) | 1) - 1) ** 2 >> 2
+
+
+def A051340(n):
+    a = (m := isqrt(k := n + 2 << 1)) + (k > m * (m + 1))
+    return 1 if n - comb(a, 2) + 1 else a - 1
+
+
+def A103451(n):
+    if n == 0:
+        return 1
+    a = (m := isqrt(k := n + 1 << 1)) - (k <= m * (m + 1))
+    return int(not (n - comb(a + 1, 2)) % a)
+
+
+if hasattr(int, "bit_count"):
+
+    def A033264(n):
+        return ((n >> 1) & ~n).bit_count()
+
+    def A384715(n):
+        return (((n >> 1) & ~n).bit_count() + bool(n & (n << 1)) + 1) << n.bit_count()
+
+    def A385393(n):
+        return ((m := n >> 1) & ~n).bit_count() + bool(n & m) + 1
+
+else:
+
+    def A033264(n):
+        return bin((n >> 1) & ~n).count("1")
+
+    def A384715(n):
+        return (bin((n >> 1) & ~n).count("1") + bool(n & (n << 1)) + 1) << bin(n).count(
+            "1"
+        )
+
+    def A385393(n):
+        return bin((m := n >> 1) & ~n).count("1") + bool(n & m) + 1
+
+
+def A085357(n):
+    return int(not n & (n << 1))
+
+
+def A051638(n):
+    return 3 * 3 ** (s := gmpy2digits(n, 3)).count("2") - 1 << s.count("1") >> 1
+
+
+def A385300_gen():  # generator of terms
+    for l in count(1):
+        for d in product("13579", repeat=l):
+            m = int("".join(d)) - 1
+            if m > 0 and set(str(m**2)) <= {"0", "2", "4", "6", "8"}:
+                yield m
+
+
+def A384064(n):
+    def f(x):
+        return n + sum(mobius(k) * (x // k**2) for k in range(1, isqrt(x) + 1))
+
+    m, k = n, f(n)
+    while m != k:
+        m, k = k, f(k)
+    s = factorint(m)
+    return m // next(p for p in sorted(s) if s[p] > 1)
+
+
+def A051683(n):
+    return factorial(a := (m := isqrt(k := n << 1)) + (k > m * (m + 1))) * (
+        n - comb(a, 2)
+    )
+
+
+if hasattr(int, "bit_count"):
+
+    def A385285(n):
+        if n == 0:
+            return 1
+        s = "0" + bin(n)[2:]
+        n1 = n >> 1
+        n2 = n1 >> 1
+        n3 = n2 >> 1
+        np = ~n
+        n1111 = (n3 & n2 & n1 & n).bit_count()
+        n11 = (n1 & n).bit_count()
+        n101 = (n2 & (~n1) & n).bit_count()
+        n100 = (n2 & (~n1) & np).bit_count()
+        n110 = (n2 & n1 & np).bit_count()
+        n10 = (n1 & np).bit_count()
+        n1100 = (n3 & n2 & (~n1) & np).bit_count()
+        m11 = s.count("0110")
+        m111 = s.endswith("0111")
+        c = (n100 << 2) + n110 + (n10 * (n10 - 1) >> 1)
+        if n11 == 0:
+            c += n10 + (n100 << 1)
+        elif n11 == 1:
+            c += (n10 - n1100 << 1) + n110
+        else:
+            c += n10 << 1
+        if not (n1111 or n11 or n101):
+            c += 1
+        elif not (n1111 or n11) and n101:
+            c += 3
+        elif m111:
+            c += 4
+        elif not (n1111 or n101 or m11) and n11:
+            c += 2
+        else:
+            c += 4
+        return c << n.bit_count()
+
+    def A385394(n):
+        if n == 0:
+            return 1
+        s = "0" + bin(n)[2:]
+        n1 = n >> 1
+        n2 = n1 >> 1
+        n3 = n2 >> 1
+        np = ~n
+        n1p = ~n1
+        n1111 = (n3 & n2 & n1 & n).bit_count()
+        n11 = (n1 & n).bit_count()
+        n101 = (n2 & n1p & n).bit_count()
+        n100 = (n2 & n1p & np).bit_count()
+        n110 = (n2 & n1 & np).bit_count()
+        n10 = (n1 & np).bit_count()
+        n1100 = (n3 & n2 & n1p & np).bit_count()
+        m11 = s.count("0110")
+        m111 = s.endswith("0111")
+        c = (n100 << 2) + n110 + (n10 * (n10 - 1) >> 1)
+        if n11 == 0:
+            c += n10 + (n100 << 1)
+        elif n11 == 1:
+            c += (n10 - n1100 << 1) + n110
+        else:
+            c += n10 << 1
+        if not (n1111 or n11 or n101):
+            c += 1
+        elif not (n1111 or n11) and n101:
+            c += 3
+        elif m111:
+            c += 4
+        elif not (n1111 or n101 or m11) and n11:
+            c += 2
+        else:
+            c += 4
+        return c
+
+else:
+
+    def A385285(n):
+        if n == 0:
+            return 1
+        s = "0" + bin(n)[2:]
+        n1 = n >> 1
+        n2 = n1 >> 1
+        n3 = n2 >> 1
+        np = ~n
+        n1111 = bin(n3 & n2 & n1 & n).count("1")
+        n11 = bin(n1 & n).count("1")
+        n101 = bin(n2 & (~n1) & n).count("1")
+        n100 = bin(n2 & (~n1) & np).count("1")
+        n110 = bin(n2 & n1 & np).count("1")
+        n10 = bin(n1 & np).count("1")
+        n1100 = bin(n3 & n2 & (~n1) & np).count("1")
+        m11 = s.count("0110")
+        m111 = s.endswith("0111")
+        c = (n100 << 2) + n110 + (n10 * (n10 - 1) >> 1)
+        if n11 == 0:
+            c += n10 + (n100 << 1)
+        elif n11 == 1:
+            c += (n10 - n1100 << 1) + n110
+        else:
+            c += n10 << 1
+        if not (n1111 or n11 or n101):
+            c += 1
+        elif not (n1111 or n11) and n101:
+            c += 3
+        elif m111:
+            c += 4
+        elif not (n1111 or n101 or m11) and n11:
+            c += 2
+        else:
+            c += 4
+        return c << bin(n).count("1")
+
+    def A385394(n):
+        if n == 0:
+            return 1
+        s = "0" + bin(n)[2:]
+        n1 = n >> 1
+        n2 = n1 >> 1
+        n3 = n2 >> 1
+        np = ~n
+        n1p = ~n1
+        n1111 = bin(n3 & n2 & n1 & n).count("1")
+        n11 = bin(n1 & n).count("1")
+        n101 = bin(n2 & n1p & n).count("1")
+        n100 = bin(n2 & n1p & np).count("1")
+        n110 = bin(n2 & n1 & np).count("1")
+        n10 = bin(n1 & np).count("1")
+        n1100 = bin(n3 & n2 & n1p & np).count("1")
+        m11 = s.count("0110")
+        m111 = s.endswith("0111")
+        c = (n100 << 2) + n110 + (n10 * (n10 - 1) >> 1)
+        if n11 == 0:
+            c += n10 + (n100 << 1)
+        elif n11 == 1:
+            c += (n10 - n1100 << 1) + n110
+        else:
+            c += n10 << 1
+        if not (n1111 or n11 or n101):
+            c += 1
+        elif not (n1111 or n11) and n101:
+            c += 3
+        elif m111:
+            c += 4
+        elif not (n1111 or n101 or m11) and n11:
+            c += 2
+        else:
+            c += 4
+        return c
+
+
+def A035513(n):
+    a = (m := isqrt(k := n << 1)) + (k > m * (m + 1))
+    x = n - comb(a, 2)
+    b, c = fib2(a - x + 2)
+    return b * (x + isqrt(5 * x * x) >> 1) + c * (x - 1)
+
+
+def A068636(n):
+    return min(n, int(str(n)[::-1]))
+
+
+def A068637(n):
+    return max(n, int(str(n)[::-1]))
+
+
+if hasattr(int, "bit_count"):
+
+    def A083094(n):
+        return int(bin(((m := n - 1).bit_count() & 1) + (m << 1))[2:], 3) << 1
+
+    def A083095(n):
+        return int(bin(((m := n - 1).bit_count() & 1) + (m << 1))[2:], 3) >> 1
+
+    def A074939(n):
+        return int(bin((n.bit_count() & 1) + (n << 1))[2:], 3)
+
+    def A074938(n):
+        return int(bin((n << 1) + (n.bit_count() & 1 ^ 1))[2:], 3)
+
+else:
+
+    def A083094(n):
+        return int(bin((bin(m := n - 1).count("1") & 1) + (m << 1))[2:], 3) << 1
+
+    def A083095(n):
+        return int(bin((bin(m := n - 1).count("1") & 1) + (m << 1))[2:], 3) >> 1
+
+    def A074939(n):
+        return int(bin((bin(n).count("1") & 1) + (n << 1))[2:], 3)
+
+    def A074938(n):
+        return int(bin((n << 1) + (bin(n).count("1") & 1 ^ 1))[2:], 3)
+
+
+def A055246(n):
+    return int(bin(n - 1)[2:], 3) * 6 | 1
+
+
+def A006996(n):
+    return 0 if "2" in gmpy2digits(n, 3) else 1 + (n & 1)
+
+
+def A061790(n):
+    return (n * (n + 1) >> 1) - len(
+        {i**2 + j**2 for i in range(1, n + 1) for j in range(1, i + 1)}
+    )
+
+
+def A385352(n):
+    return sum(
+        1
+        for a in Counter(
+            (i**2 + j**2 for i in range(1, n + 1) for j in range(1, i + 1))
+        ).values()
+        if a > 1
+    )
+
+
+def A385350(n):
+    def f(x):
+        return int(
+            n
+            - 1
+            + x
+            - primepi(integer_nthroot(x, 3)[0])
+            + (t := primepi(s := isqrt(x)))
+            + (t * (t - 1) >> 1)
+            - sum(primepi(x // k) for k in primerange(3, s + 1))
+        )
+
+    return iterfun(f, n)
+
+
+def A136655(n):
+    d = divisor_count(m := n >> (~n & n - 1).bit_length())
+    return isqrt(m) ** d if d & 1 else m ** (d >> 1)
+
+
+def A385349(n):
+    d = divisor_count(m := n >> (~n & n - 1).bit_length())
+    k = isqrt(m) ** d if d & 1 else m ** (d >> 1)
+    return k // n if n & 1 else k
+
+
+def A110654(n):
+    return n + 1 >> 1
+
+
+def A052276(n):
+    return (n + 1 >> 1) ** 3 + (-3 if n & 1 else 3) if n > 1 else 3
+
+
+def A052382(n):
+    m = integer_log(k := (n << 3) + 1, 9)[0]
+    return sum((1 + (k - 9**m) // (9**j << 3) % 9) * 10**j for j in range(m))
+
+
+def A023705(n):
+    m = integer_log(k := (n << 1) + 1, 3)[0]
+    return sum(1 + (k - 3**m) // (3**j << 1) % 3 << (j << 1) for j in range(m))
+
+
+def A028846(n):
+    m = (k := 3 * n + 1).bit_length() - 1 >> 1
+    return sum(
+        10**j << ((k - (1 << (m << 1))) // (3 << (j << 1)) & 3) for j in range(m)
+    )
+
+
+def A174813(n):
+    m = integer_log(k := (n << 1) + 1, 3)[0]
+    return sum(3 ** ((k - 3**m) // (3**j << 1) % 3) * 10**j for j in range(m))
+
+
+def A248910(n):
+    m = integer_log(k := (n << 2) + 1, 5)[0]
+    return sum((1 + (k - 5**m) // (5**j << 2) % 5) * 6**j for j in range(m))
+
+
+def A255805(n):
+    m = integer_log(k := 6 * n + 1, 7)[0]
+    return sum(1 + (k - 7**m) // (6 * 7**j) % 7 << 3 * j for j in range(m))
+
+
+def A255808(n):
+    m = ((k := 7 * n + 1).bit_length() - 1) // 3
+    return sum((1 + ((k - (1 << 3 * m)) // (7 << 3 * j) & 7)) * 9**j for j in range(m))
+
+
+def A052421(n):
+    return int(gmpy2digits(n - 1, 9).replace("8", "9"))
+
+
+def A052419(n):
+    return int(gmpy2digits(n - 1, 9).replace("8", "9").replace("7", "8"))
+
+
+def A052414(n):
+    return int(gmpy2digits(n - 1, 9).translate(str.maketrans("678", "789")))
+
+
+def A052413(n):
+    return int(gmpy2digits(n - 1, 9).translate(str.maketrans("5678", "6789")))
+
+
+def A052406(n):
+    return int(gmpy2digits(n - 1, 9).translate(str.maketrans("45678", "56789")))
+
+
+def A052405(n):
+    return int(gmpy2digits(n - 1, 9).translate(str.maketrans("345678", "456789")))
+
+
+def A052383(n):
+    return int("".join(str(int(d) + (d != "0")) for d in gmpy2digits(n - 1, 9)))
+
+
+def A284293(n):
+    return 5 * int(bin(n + 1)[3:]) + (10 ** ((n + 1).bit_length() - 1) - 1) // 9
+
+
+def A032822(n):
+    return 3 * int(bin(n + 1)[3:]) + (10 ** ((n + 1).bit_length() - 1) - 1) // 9
+
+
+def A276037(n):
+    return (int(bin(n + 1)[3:]) << 2) + (10 ** ((n + 1).bit_length() - 1) - 1) // 9
+
+
+def A276039(n):
+    return 6 * int(bin(n + 1)[3:]) + (10 ** ((n + 1).bit_length() - 1) - 1) // 9
+
+
+def A384670(n):
+    for y in count(1):
+        x, z = divmod(y * ((n << 1) - 1), 200)
+        if (200 * (x + bool(z)) + y) // (y << 1) == n:
+            return y
+
+
+def A239525(n):
+    for y in count(1):
+        if not y * ((n << 1) + 1) % 200:
+            return y
+        x, z = divmod(y * ((n << 1) - 1), 200)
+        if (a := x + bool(z)) and (200 * a + y) // (y << 1) == n:
+            return y
+
+
+def A239526(n):
+    for y in count(1):
+        x, z = divmod(y * ((n << 1) + 1), 200)
+        if not z:
+            return x
+        x, z = divmod(y * ((n << 1) - 1), 200)
+        if (x := x + bool(z)) and (200 * x + y) // (y << 1) == n:
+            return x
+
+
+def A032612(n):
+    return n * (10 ** len(str(n + 7)) + 1) + 7
+
+
+def A385454(n):
+    l = len(d := divisors(n))
+    return n + 1 - d[l - 1 >> 1] - d[l >> 1]
+
+
+def A384924(n):
+    m = n + (k := isqrt(n)) + (n > k * (k + 1))
+    return 1 + next(n for n in count(1) if not isqrt(10 ** (n << 1) * m) % 10)
+
+
+def A384923(n):
+    m = n + (k := isqrt(n)) + (n > k * (k + 1))
+    return 1 + next(
+        n for n in count(9) if len(set(str(isqrt(10 ** (n << 1) * m)))) == 10
+    )
+
+
+def A385356_gen(startvalue=1):  # generator of terms >= startvalue
+    for x in count(max(startvalue, 1)):
+        sx, x2 = int(divisor_sigma(x)), x**2
+        sx2 = sx**2
+        if sx2 > x2:
+            for y in count(x):
+                if (k := sx2 - x2 - y**2) <= 0:
+                    break
+                if is_square(k) and sx == divisor_sigma(y):
+                    yield x
+                    break
+
+
+def A385407(n):
+    return n * (n * (n * (n * (n * (n - 14) + 77) - 194) + 228) - 86) // 12 + 1
+
+
+def A380464_gen(startvalue=2):  # generator of terms >= startvalue
+    for k in count(max(startvalue, 2)):
+        if A005245(k) > min(A005245(i * k) for i in range(1, k)):
+            yield k
+
+
+def A385614(n):
+    y = (m := isqrt(k := n << 1)) + (k > m * (m + 1)) + 2
+    x = n - comb(y - 2, 2) + 1
+    return x**x + y**y
+
+
+def A385552(n):
+    return 5 * 5 ** (integer_log(n, 5)[0]) if n else 1
+
+
+def A385323(n):
+    if n == 2:
+        return -1
+    p = 2
+    while True:
+        p3 = p**3
+        for k in combinations(range(1, p + 1), n):
+            if sum(i**3 for i in k) == p3:
+                return p
+        p = nextprime(p)
+
+
+def A131818(n):
+    y = (m := isqrt(k := n - 1 << 1)) + (k > m * (m + 1))
+    return n - comb(y, 2)
+
+
+def A047800(n):
+    return len(set(i**2 + j**2 for i in range(n + 1) for j in range(i + 1)))
+
+
+def A384797(n):
+    s = set(i**2 + j**2 for i in range(n) for j in range(i + 1))
+    return n + 1 - sum(1 for i in range(n + 1) if n**2 + i**2 in s)
+
+
+def A384798_gen():  # generator of terms
+    s, m = {0}, 1
+    for n in count(1):
+        c = n + 1
+        for i in range(n + 1):
+            if (k := n**2 + i**2) in s:
+                c -= 1
+            else:
+                s.add(k)
+        if c > m:
+            yield c
+            m = c
+
+
+def A384799_gen():  # generator of terms
+    s, m = {0}, 1
+    for n in count(1):
+        c = n + 1
+        for i in range(n + 1):
+            if (k := n**2 + i**2) in s:
+                c -= 1
+            else:
+                s.add(k)
+        if c > m:
+            yield n
+            m = c
+
+
+def A385741(n):
+    s = gmpy2digits(n, 3)
+    n1 = s.count("1")
+    n2 = s.count("2")
+    n01 = s.count("10")
+    n02 = s.count("20")
+    n11 = len(re.findall("(?=11)", s))
+    n12 = s.count("21")
+    n121 = len(re.findall("(?=121)", s))
+    n122 = s.count("221")
+    n21 = s.count("12")
+    n22 = len(re.findall("(?=22)", s))
+    x1 = (
+        3
+        * (
+            3**n2 * (12 * n01 + (n02 << 4) + 3 * n11 + (n12 << 2))
+            - (n01 + n12 << 2)
+            + (n02 << 4)
+            + n11
+        )
+        << n1
+    ) >> 3
+    beta = S.Half * (I * sqrt(3) - 1)
+
+    def ind2(t):
+        return (0, 0, 1, 0, 2, 5, 0, 4, 3)[t]
+
+    def X(t):
+        return (
+            beta ** (ind2(t) - n11 - n12 + n121 - n122)
+            * (2 - beta) ** (n21 - n121)
+            * (3 + beta) ** (n2 - n12 - n21 - n22 + n121 + n122)
+        )
+
+    def Y(t):
+        return (
+            beta ** (n11 - ind2(t))
+            * (1 - beta) ** (n21 - n121)
+            * (2 + beta) ** (n2 - n21 - n22)
+            * (1 + 2 * beta) ** n121
+        )
+
+    def f(t):
+        return (
+            (3**n2 << n1)
+            + ((1 << n1) if (t + 1) % 3 else -(1 << n1))
+            + ((-1 if (not (t + 1) % 3) + n11 + n122 & 1 else 1) << n1 - n11 + n122 + 1)
+            * sympy.re(X(t))
+            + ((not n122) * (-1 if n11 & 1 else 1) * 3 ** (n22 - n122) << n1 - n11 + 1)
+            * sympy.re(Y(t))
+        ) * Rational(1, 6)
+
+    x2 = simplify(sum(i * f(i) for i in (1, 2, 4, 5, 7, 8)))
+    return int(x1 + x2)
+
+
+def A385825(n):
+    k = (1, 2, 4, 3)
+    s = gmpy2digits(n, 5)
+    t = [s.count(str(i)) for i in range(1, 5)]
+    G = (
+        2 ** t[0]
+        * (symbolx + 2) ** t[1]
+        * (2 * symbolx**2 + 3) ** t[3]
+        * (2 * symbolx**3 + 2) ** t[2]
+    )
+    c = Poly(rem(G, symbolx**4 - 1), symbolx).all_coeffs()[::-1]
+    return int(sum(k[i] * c[i] for i in range(len(c)) if c[i]))
+
+
+def A385826(n):
+    k = (1, 3, 2, 6, 4, 5)
+    s = gmpy2digits(n, 7)
+    t = [s.count(str(i)) for i in range(1, 7)]
+    G = (
+        2 ** t[0]
+        * (2 * symbolx + 2) ** t[2]
+        * (symbolx**2 + 2) ** t[1]
+        * (3 * symbolx**3 + 4) ** t[5]
+        * (2 * symbolx**4 + symbolx**3 + 2) ** t[3]
+        * (2 * symbolx**5 + 2 * symbolx + 2) ** t[4]
+    )
+    c = Poly(rem(G, symbolx**6 - 1), symbolx).all_coeffs()[::-1]
+    return int(sum(k[i] * c[i] for i in range(len(c)) if c[i]))
+
+
+def A385828(n):
+    s = sympydigits(n, 11)[1:]
+    t = tuple(s.count(i) for i in range(1, 11))
+    G = (
+        2 ** t[0]
+        * (symbolx + 2) ** t[1]
+        * (5 * symbolx**5 + 6) ** t[9]
+        * (2 * symbolx**8 + 2) ** t[2]
+        * (2 * symbolx**5 + 2 * symbolx**4 + 2) ** t[4]
+        * (symbolx**9 + 2 * symbolx**2 + 2) ** t[3]
+        * (2 * symbolx**7 + 2 * symbolx**5 + 2 * symbolx + 2) ** t[6]
+        * (2 * symbolx**9 + 2 * symbolx**3 + symbolx**2 + 4) ** t[7]
+        * (2 * symbolx**9 + symbolx**6 + 2 * symbolx**2 + 2) ** t[5]
+        * (2 * symbolx**8 + 2 * symbolx**7 + 2 * symbolx**6 + 2 * symbolx**4 + 2)
+        ** t[8]
+    )
+    c = Poly(rem(G, symbolx**10 - 1), symbolx).all_coeffs()[::-1]
+    return int(sum(pow(2, i, 11) * c[i] for i in range(len(c)) if c[i]))
+
+
+def A385859(n):
+    return 5 * 3 ** (s := gmpy2digits(n, 3)).count("2") - 3 << s.count("1") >> 1
+
+
+def A385435(n):
+    return (
+        3 * 3 ** (s := gmpy2digits(n >> 1, 3)).count("2") - 1 << s.count("1")
+        if n & 1
+        else 3 * 3 ** (s := gmpy2digits(n >> 1, 3)).count("2") - 1 << s.count("1") >> 1
+    )
+
+
+def A164894(n):
+    return sum(1 << (k * ((n << 1) - k - 1) >> 1) + n - 1 for k in range(n))
+
+
+def A385259(n):
+    return isqrt(10 ** (n - 3 << 1) * 108) % 10 if n > 2 else 2
+
+
+def A385689(n):
+    return (n * (n * (n * (n - 2) + 7) + 2) >> 2) + 1
+
+
+def A127873(n):
+    return (n * (n * (n + 3) + 6) >> 1) + 3
+
+
+def A385720_gen(startvalue=1):  # generator of terms >= startvalue
+    m = max(startvalue, 1)
+    a, b = divisor_count(m), divisor_count(m + 1)
+    for k in count(m):
+        if not (k * b + (k + 1) * a) % (a * b):
+            yield k
+        a, b = b, divisor_count(k + 2)
+
+
+def A385991(n):
+    if n == 0:
+        return 1
+    a, b, s, c = 0, 1, {0, 1}, 2
+    for i in range(n - 1):
+        a, b = b, ((a // b << 1) + 1) * b - a
+        if b not in s:
+            c += 1
+            s.add(b)
+    return c
+
+
+def A385989(n):
+    return n + n_order(2, n >> (~n & n - 1).bit_length())
+
+
+def A385938(n):
+    q, r = divmod(n, 3)
+    return (q << 1) + r if r < 2 else 7 * q + 5
+
+
+def A095018(n):
+    return sum(
+        1
+        for d in combinations((1 << i for i in range((n << 1) - 1)), n - 1)
+        if isprime((1 << (n << 1) - 1) + sum(d))
+    )
+
+
+if hasattr(int, "bit_count"):
+
+    def A034931(n):
+        g = (m := isqrt(f := n + 1 << 1)) - (f <= m * (m + 1))
+        k = n - comb(g + 1, 2)
+        if k.bit_count() + (g - k).bit_count() - g.bit_count() > 1:
+            return 0
+        s, c, d = bin(g)[2:], 1, 0
+        w = (bin(k)[2:]).zfill(l := len(s))
+        for i in range(0, l - 1):
+            r, t = s[i : i + 2], w[i : i + 2]
+            if (x := int(r, 2)) < (y := int(t, 2)):
+                d += (t[0] > r[0]) + (t[1] > r[1])
+            else:
+                c = c * comb(x, y) & 3
+        d -= sum(1 for i in range(1, l - 1) if w[i] > s[i])
+        return (c << d) & 3
+
+    def A034930(n):
+        g = (m := isqrt(f := n + 1 << 1)) - (f <= m * (m + 1))
+        k = n - comb(g + 1, 2)
+        if k.bit_count() + (g - k).bit_count() - g.bit_count() > 2:
+            return 0
+
+        def g1(s, w, e):
+            c, d = 1, 0
+            if len(s) == 0:
+                return c, d
+            a, b = int(s, 2), int(w, 2)
+            if a >= b:
+                k = comb(a, b) & 7
+                j = (~k & k - 1).bit_length()
+                d += j * e
+                k >>= j
+                c = c * pow(k, e, 8) & 7
+            else:
+                if int(s[0:1], 2) < int(w[0:1], 2):
+                    d += e
+                c0, d0 = g1(s[1:], w[1:], e)
+                c = c * c0 & 7
+                d += d0
+            return c, d
+
+        s = bin(g)[2:].zfill(3)
+        w = bin(k)[2:].zfill(l := len(s))
+        c, d = g1(s[:3], w[:3], 1)
+        for i in range(1, l - 1):
+            c0, d0 = g1(s[i : i + 3], w[i : i + 3], 1)
+            c1, d1 = g1(s[i : i + 2], w[i : i + 2], -1)
+            c = c * c0 * c1 & 7
+            d += d0 + d1
+        return (c << d) & 7
+
+    def A034932(n):
+        g = (m := isqrt(f := n + 1 << 1)) - (f <= m * (m + 1))
+        k = n - comb(g + 1, 2)
+        if k.bit_count() + (g - k).bit_count() - g.bit_count() > 3:
+            return 0
+
+        def g1(s, w, e):
+            c, d = 1, 0
+            if len(s) == 0:
+                return c, d
+            a, b = int(s, 2), int(w, 2)
+            if a >= b:
+                k = comb(a, b) & 15
+                j = (~k & k - 1).bit_length()
+                d += j * e
+                k >>= j
+                c = c * pow(k, e, 16) & 15
+            else:
+                if int(s[0:1], 2) < int(w[0:1], 2):
+                    d += e
+                c0, d0 = g1(s[1:], w[1:], e)
+                c = c * c0 & 15
+                d += d0
+            return c, d
+
+        s = bin(g)[2:].zfill(4)
+        w = bin(k)[2:].zfill(l := len(s))
+        c, d = g1(s[:4], w[:4], 1)
+        for i in range(1, l - 3):
+            c0, d0 = g1(s[i : i + 4], w[i : i + 4], 1)
+            c1, d1 = g1(s[i : i + 3], w[i : i + 3], -1)
+            c = c * c0 * c1 & 15
+            d += d0 + d1
+        return (c << d) & 15
+
+else:
+
+    def A034931(n):
+        g = (m := isqrt(f := n + 1 << 1)) - (f <= m * (m + 1))
+        k = n - comb(g + 1, 2)
+        if bin(k).count("1") + bin(g - k).count("1") - bin(g).count("1") > 1:
+            return 0
+        s, c, d = bin(g)[2:], 1, 0
+        w = (bin(k)[2:]).zfill(l := len(s))
+        for i in range(0, l - 1):
+            r, t = s[i : i + 2], w[i : i + 2]
+            if (x := int(r, 2)) < (y := int(t, 2)):
+                d += (t[0] > r[0]) + (t[1] > r[1])
+            else:
+                c = c * comb(x, y) & 3
+        d -= sum(1 for i in range(1, l - 1) if w[i] > s[i])
+        return (c << d) & 3
+
+    def A034930(n):
+        g = (m := isqrt(f := n + 1 << 1)) - (f <= m * (m + 1))
+        k = n - comb(g + 1, 2)
+        if bin(k).count("1") + bin(g - k).count("1") - bin(g).count("1") > 2:
+            return 0
+
+        def g1(s, w, e):
+            c, d = 1, 0
+            if len(s) == 0:
+                return c, d
+            a, b = int(s, 2), int(w, 2)
+            if a >= b:
+                k = comb(a, b) & 7
+                j = (~k & k - 1).bit_length()
+                d += j * e
+                k >>= j
+                c = c * pow(k, e, 8) & 7
+            else:
+                if int(s[0:1], 2) < int(w[0:1], 2):
+                    d += e
+                c0, d0 = g1(s[1:], w[1:], e)
+                c = c * c0 & 7
+                d += d0
+            return c, d
+
+        s = bin(g)[2:].zfill(3)
+        w = bin(k)[2:].zfill(l := len(s))
+        c, d = g1(s[:3], w[:3], 1)
+        for i in range(1, l - 1):
+            c0, d0 = g1(s[i : i + 3], w[i : i + 3], 1)
+            c1, d1 = g1(s[i : i + 2], w[i : i + 2], -1)
+            c = c * c0 * c1 & 7
+            d += d0 + d1
+        return (c << d) & 7
+
+    def A034932(n):
+        g = (m := isqrt(f := n + 1 << 1)) - (f <= m * (m + 1))
+        k = n - comb(g + 1, 2)
+        if bin(k).count("1") + bin(g - k).count("1") - bin(g).count("1") > 3:
+            return 0
+
+        def g1(s, w, e):
+            c, d = 1, 0
+            if len(s) == 0:
+                return c, d
+            a, b = int(s, 2), int(w, 2)
+            if a >= b:
+                k = comb(a, b) & 15
+                j = (~k & k - 1).bit_length()
+                d += j * e
+                k >>= j
+                c = c * pow(k, e, 16) & 15
+            else:
+                if int(s[0:1], 2) < int(w[0:1], 2):
+                    d += e
+                c0, d0 = g1(s[1:], w[1:], e)
+                c = c * c0 & 15
+                d += d0
+            return c, d
+
+        s = bin(g)[2:].zfill(4)
+        w = bin(k)[2:].zfill(l := len(s))
+        c, d = g1(s[:4], w[:4], 1)
+        for i in range(1, l - 3):
+            c0, d0 = g1(s[i : i + 4], w[i : i + 4], 1)
+            c1, d1 = g1(s[i : i + 3], w[i : i + 3], -1)
+            c = c * c0 * c1 & 15
+            d += d0 + d1
+        return (c << d) & 15
+
+
+def A095145(n):
+    return crt([4, 3], [A034931(n), A083093(n)])[0]
+
+
+def A047999(n):
+    return int(
+        not ~(r := (m := isqrt(k := n + 1 << 1)) - (k <= m * (m + 1)))
+        & n - comb(r + 1, 2)
+    )
+
+
+def A386441(n):
+    def g1(s, w, e):
+        c, d = 1, 0
+        if len(s) == 0:
+            return c, d
+        a, b = int(s, 3), int(w, 3)
+        if a >= b:
+            k = comb(a, b) % 27
+            j = multiplicity(3, k)
+            d += j * e
+            k = k // 3**j
+            c = c * pow(k, e, 27) % 27
+        else:
+            if int(s[0:1], 3) < int(w[0:1], 3):
+                d += e
+            c0, d0 = g1(s[1:], w[1:], e)
+            c = c * c0 % 27
+            d += d0
+        return c, d
+
+    g = (m := isqrt(f := n + 1 << 1)) - (f <= m * (m + 1))
+    k = n - comb(g + 1, 2)
+    s, w = gmpy2digits(g, 3), gmpy2digits(k, 3)
+    if (
+        sum(int(d) for d in w)
+        + sum(int(d) for d in gmpy2digits(g - k, 3))
+        - sum(int(d) for d in s)
+        > 4
+    ):
+        return 0
+    s = s.zfill(3)
+    w = w.zfill(l := len(s))
+    c, d = g1(s[:3], w[:3], 1)
+    for i in range(1, l - 2):
+        c0, d0 = g1(s[i : i + 3], w[i : i + 3], 1)
+        c1, d1 = g1(s[i : i + 2], w[i : i + 2], -1)
+        c = c * c0 * c1 % 27
+        d += d0 + d1
+    return c * 3**d % 27
+
+
+def A350176_gen(startvalue=3):  # generator of terms >= startvalue
+    for m in count(max(startvalue, 3)):
+        k = m * (m - 1) * (m - 2)
+        a = pow(3, m, k) - 2
+        if (a * (a - 1) * (a - 2)) % k == 0:
+            yield m
