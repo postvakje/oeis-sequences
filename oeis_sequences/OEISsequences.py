@@ -687,7 +687,7 @@ def squarefree(n):
 
 def binom_mod_primepower(n, k, p, t):
     """
-    binomial(n,k) mod p^t
+    binomial(n,k) mod p^t, for p prime.
     based on Davis and Webb, 'Lucas' Theorem for Prime Powers', Europ. J. Combinatorics (1990) 11, 229-233.
     """
 
@@ -716,7 +716,8 @@ def binom_mod_primepower(n, k, p, t):
             d += d0
         return c, d
 
-    if k > n:
+    k = min(k, n - k)
+    if k < 0:
         return 0
     q = p**t
     if n < q:
@@ -724,10 +725,15 @@ def binom_mod_primepower(n, k, p, t):
             d = 1
             for i in range(k):
                 d = d * (n - i) % p
-            e = 1
-            for i in range(1, k + 1):
-                e = e * i % p
-            return d * pow(e, -1, p) % p
+            if (k << 1) < p - 2:
+                e = 1
+                for i in range(1, k + 1):
+                    e = e * i % p
+                return d * pow(e, -1, p) % p
+            else:
+                for i in range(k + 1, p - 1):
+                    d = d * i % p
+                return d
         else:
             d, dp = 1, 0
             for i in range(k):
@@ -739,14 +745,14 @@ def binom_mod_primepower(n, k, p, t):
                     )
                 )
                 d = (d * (n - i) // p**x) % q if p != 2 else (d * (n - i) >> x) % q
-            e, ep = 1, 0
+            e = 1
             for i in range(1, k + 1):
-                ep += (x := multiplicity(p, i) if p != 2 else (~i & i - 1).bit_length())
+                dp -= (x := multiplicity(p, i) if p != 2 else (~i & i - 1).bit_length())
                 e = (e * i // p**x) % q if p != 2 else (e * i >> x) % q
             return (
-                d * pow(e, -1, q) * p ** ((dp - ep) % t) % q
+                d * pow(e, -1, q) * p ** (dp % t) % q
                 if p != 2
-                else (d * pow(e, -1, q) << (dp - ep) % t) % q
+                else (d * pow(e, -1, q) << dp % t) % q
             )
     s, w = sympydigits(n, p)[1:], sympydigits(k, p)[1:]
     if sum(w) + sum(sympydigits(n - k, p)[1:]) - sum(s) > (t - 1) * (p - 1):
@@ -27359,7 +27365,11 @@ def A293160(n):
 
 
 def A101624(n):
-    return sum(int(not k & ~(n - k)) * 2**k for k in range(n // 2 + 1))
+    return sum(int(not k & ~(n - k)) << k for k in range((n >> 1) + 1))
+
+
+def A101623(n):
+    return sum(int(not k & ~(n - k)) * 10**k for k in range((n >> 1) + 1))
 
 
 def A006921(n):
@@ -87828,6 +87838,15 @@ if hasattr(int, "bit_count"):
             ((3 * (n01 + 1) + (n02 << 2) + n12 << 2) + 3 * n11) * (3**n2 << n1) // 12
         ) - (2 + ((n >> 1) & ~n).bit_count() << n.bit_count() >> 1)
 
+    def A128806(n):
+        return (1 << n.bit_count()) + (n * (n + 1) << 1)
+
+    def A105321(n):
+        return (1 << n.bit_count()) + (1 << (n - 1).bit_count()) if n else 1
+
+    def A048460(n):
+        return (1 << n.bit_count()) + (1 << (n - 1).bit_count()) >> 1
+
 else:
 
     def A249732(n):
@@ -87844,6 +87863,12 @@ else:
         return (
             ((3 * (n01 + 1) + (n02 << 2) + n12 << 2) + 3 * n11) * (3**n2 << n1) // 12
         ) - (2 + (s := bin(n)[2:]).count("10") << s.count("1") >> 1)
+
+    def A128806(n):
+        return (1 << bin(n).count("1")) + (n * (n + 1) << 1)
+
+    def A105321(n):
+        return (1 << bin(n).count("1")) + (1 << bin(n - 1).count("1")) if n else 1
 
 
 def A065350(n):
@@ -87902,9 +87927,344 @@ def A385976(n):
                 return k
 
 
-def A224952(n):
-    return (binom_mod(4 * (p := prime(n)) - 1, 2 * p - 1, p**5) - 3) // p**3
-
-
 def A163260(n):
     return sum(binom_mod(n - 1, k + 1, comb(n - 1, k)) for k in range(n))
+
+
+def A024483(n):
+    return binom_mod(m := n << 1, n, comb(m - 2, n - 1))
+
+
+def A076541(n):
+    return sum(binom_mod(n, k, k) for k in range(1, n + 1))
+
+
+def A386318(n):
+    if n == 0:
+        return 4
+    l = len(d := divisors(n))
+    return (d[(l - 1) >> 1] + 2) * (d[l >> 1] + 2)
+
+
+def A386316(n):
+    if n == 0:
+        return 4
+    m = (k := isqrt(n)) + (k * (k + 1) < n)
+    return min(
+        ((d := divisors(i))[(l := len(d)) - 1 >> 1] + 2) * (d[l >> 1] + 2)
+        for i in range(n, min(n + k, m * (m + 1)) + 1)
+    )
+
+
+def A096304(n):
+    a, b = divmod(n, 3)
+    return int(bin(a)[2:], 3) * 3 + b
+
+
+def A356447(n):
+    a, b = divmod(n, 3)
+    return (int(bin(a)[2:], 3) * 3 + b) * 3 - 1
+
+
+def A127830(n):
+    return sum(not ~(k >> 1) & n - k for k in range(n + 1))
+
+
+def A290040_gen():  # generator of terms
+    for m in count(2):
+        if not isprime(m) and any(
+            d > 1 and binom_mod(m + d, d, m) == 1 for d in divisors(m, generator=True)
+        ):
+            yield m
+
+
+def A290041_gen():  # generator of terms
+    for m in count(2):
+        if not isprime(m):
+            for d in divisors(m):
+                if d > 1 and binom_mod(m + d, d, m) == 1:
+                    yield d
+                    break
+
+
+def A119492_gen():
+    for n in count(2):
+        if not isprime(n) and all(
+            binom_mod(n, k, n) or gcd(k, n) == 1 for k in range(1, n)
+        ):
+            yield n
+
+
+def A224952(n):
+    p = prime(n)
+    return (binom_mod_primepower(4 * p - 1, 2 * p - 1, p, 5) - 3) // p**3
+
+
+def A386663(n):
+    return sum(binom_mod(n, k, m := 5**k) * pow(4, k, m) % m for k in range(1, n + 1))
+
+
+def A386660(n):
+    return sum(binom_mod(n, k, 1 << k) for k in range(1, n + 1))
+
+
+def A386662(n):
+    return sum(binom_mod(n, k, m := 4**k) * pow(3, k, m) % m for k in range(1, n + 1))
+
+
+def A386661(n):
+    return sum(binom_mod(n, k, m := 3**k) * pow(2, k, m) % m for k in range(1, n + 1))
+
+
+def A376535(n):
+    m, m2 = n**2, 5**n
+    return (
+        sum(
+            binom_mod(m, k, m2) * pow(2, m - k, m2) * pow(3, k, m2) % m2
+            for k in range(m + 1)
+        )
+        // m2
+    )
+
+
+def A376534(n):
+    m, m2 = n**2, 5**n
+    return sum(binom_mod(m, k, m2) * pow(4, k, m2) % m2 for k in range(m + 1)) // m2
+
+
+def A126806(n):
+    m = 1 << n
+    for k in count(1):
+        r = sum(binom_mod(2 * i, i, m) for i in range(1, k + 1)) % m
+        if r == 0:
+            return k
+
+
+def A071705(n):
+    m = comb(2 * n, n)
+    for k in count(n + 1):
+        if binom_mod(2 * k, k, m) == 0:
+            return k
+
+
+def A080395_gen():  # generator of terms
+    for k in count(2, 2):
+        if binom_mod(k, k >> 1, k**2) == 0:
+            yield k
+
+
+def A267823(n):
+    m = primorial(n)
+    for k in count(1):
+        if binom_mod(k << 1, k, m) == 0:
+            return k
+
+
+def A084699_gen():  # generator of terms
+    for j in count(2):
+        if not isprime(j) and binom_mod(2 * j, j, j) == pow(2, j, j):
+            yield j
+
+
+def A080469_gen():  # generator of terms
+    for j in count(2):
+        if not isprime(j) and binom_mod(3 * j, j, j) == pow(3, j, j):
+            yield j
+
+
+def A109760_gen():  # generator of terms
+    for j in count(2):
+        if not isprime(j) and binom_mod(5 * j, j, j) == pow(5, j, j):
+            yield j
+
+
+def A109769_gen():  # generator of terms
+    for j in count(2):
+        if not isprime(j) and binom_mod(7 * j, j, j) == pow(7, j, j):
+            yield j
+
+
+def A082180_gen():  # generator of terms
+    for k in count(2):
+        m = factorint(k)
+        if len(m) == 1:
+            if max(m.values()) == 2:
+                yield k
+            elif max(m.values()) == 3 and k > 27:
+                yield k
+        elif not isprime(k) and binom_mod(2 * k, k, k) == 2:
+            yield k
+
+
+def A328497_gen():  # generator of terms
+    for k in count(2):
+        m = factorint(k)
+        if len(m) == 1:
+            if max(m.values()) == 2:
+                continue
+            elif max(m.values()) == 3 and k > 27:
+                continue
+        elif not isprime(k) and binom_mod(2 * k, k, k) == 2:
+            yield k
+
+
+def A111869(n):
+    m = n**2
+    for k in count(1):
+        if binom_mod(2 * k, k, m) == 0:
+            return k
+
+
+def A094576_gen():  # generator of terms
+    for n in count(3):
+        if binom_mod(n << 1, n, n - 2) == 0:
+            yield n
+
+
+def A094575_gen():  # generator of terms
+    for n in count(2):
+        if binom_mod(n << 1, n, n - 1) == 0:
+            yield n
+
+
+def A056625(n):
+    return (binom_mod((n << 1) - 1, n - 1, m := n**2) - 1) % m
+
+
+def A042943_gen():  # generator of terms
+    for n in count(1):
+        m = (k := 1 << n) * (k - 1) >> 1
+        if binom_mod(k, n, m) == 0:
+            yield n
+
+
+def A350905_gen():  # generator of terms
+    for k in count(3):
+        m = k * (k - 1) * (k - 2) // 3
+        if ((r := pow(3, k, m)) * (r - 7) + 12) % m == 0:
+            yield k
+
+
+def A006940(n):
+    if n == 0:
+        return 1
+    c, l = "", len(s := gmpy2digits(n, 3))
+    for k in range(m := n + 2 >> 1):
+        t = gmpy2digits(k, 3).zfill(l)
+        c += str(prod(comb(int(s[i]), int(t[i])) % 3 for i in range(l)) % 3)
+    return int(c + c[m - 2 + (n & 1) :: -1])
+
+
+def A173019(n):
+    if n == 0:
+        return 1
+    c, l = "", len(s := gmpy2digits(n, 3))
+    for k in range(m := n + 2 >> 1):
+        t = gmpy2digits(k, 3).zfill(l)
+        c += str(prod(comb(int(s[i]), int(t[i])) % 3 for i in range(l)) % 3)
+    return int(c + c[m - 2 + (n & 1) :: -1], 3)
+
+
+def A059734(n):
+    k, l = 0, len(s := gmpy2digits(n, 5))
+    for m in range(n + 1):
+        t = gmpy2digits(m, 5).zfill(l)
+        k = (
+            10 * k
+            + crt(
+                [5, 2],
+                [
+                    prod(comb(int(s[i]), int(t[i])) % 5 for i in range(l)) % 5,
+                    int(not ~n & m),
+                ],
+            )[0]
+        )
+    return k
+
+
+def A225367(n):
+    return 3 if n == 1 else 3 ** (n - 1 >> 1) << 1
+
+
+def A070252(n):
+    return 10 if n == 1 else 9 * 10 ** (n - 1 >> 1)
+
+
+def A050683(n):
+    return 9 * 10 ** (n - 1 >> 1)
+
+
+def A248125(n):
+    k = comb(n << 1, n)
+    for m in count(1):
+        if (binom_mod(m << 1, m, m + n) + k) % (m + n) == 0:
+            return m
+
+
+def A083096_gen():  # generator of terms
+    for k in count(0, 6):
+        if sum(binom_mod(2 * j, j, 3) for j in range(1, k + 1)) % 3 == 0:
+            yield k
+
+
+def A083097_gen():  # generator of terms
+    for k in count(0, 6):
+        if sum(binom_mod(2 * j, j, 3) for j in range(1, k + 1)) % 3 == 0:
+            yield k // 6
+
+
+def A101680(n):
+    return sum(int(not ~((n << 1) - k) & k) * 10**k for k in range(n + 1))
+
+
+def A099902(n):
+    return sum(int(not ~((n << 1) - k) & k) << k for k in range(n + 1))
+
+
+def A070199(n):
+    return 10 ** (n >> 1) * (11 if n & 1 else 2) - 1
+
+
+def A050250(n):
+    return 10 ** (n >> 1) * (11 if n & 1 else 2) - 2
+
+
+def A263429(n):
+    p = 2
+    while True:
+        if binom_mod_primepower((p << 1) - 1, p - 1, p, n) == 1:
+            return p
+        p = nextprime(p)
+
+
+def A088164_gen():  # generator of terms
+    p = 2
+    while True:
+        if binom_mod_primepower((p << 1) - 1, p - 1, p, 4) == 1:
+            yield p
+        p = nextprime(p)
+
+
+def A101650(n):
+    return (
+        sum(
+            reduce(
+                lambda x, y: (x[0], x[0] + x[1]) if int(y) else (x[0] + x[1], x[1]),
+                bin(n + 1)[-1:2:-1],
+                (1, 0),
+            )
+        )
+        - 1
+    ) % 3
+
+
+def A101691(n):
+    return sum((not ~(n - 1 << 1) & k) for k in range(n + 1))
+
+
+def A101693(n):
+    return sum((not ~(n - 1 << 1) & k) << k for k in range(n + 1))
+
+
+def A098534(n):
+    return sum(binom_mod(n - k - 1, k, 3) for k in range(n + 1 >> 1))
