@@ -88035,12 +88035,6 @@ def A267823(n):
             return k
 
 
-def A084699_gen():  # generator of terms
-    for j in count(2):
-        if not isprime(j) and binom_mod(2 * j, j, j) == pow(2, j, j):
-            yield j
-
-
 def A080469_gen():  # generator of terms
     for j in count(2):
         if not isprime(j) and binom_mod(3 * j, j, j) == pow(3, j, j):
@@ -93560,3 +93554,411 @@ def A131188_gen():  # generator of terms
                 )
             )
         p, q = q, nextprime(q)
+
+
+def A390532(n):
+    return 1 << (n >> 1) if n & 1 else n >> 1
+
+
+def A392009(n):
+    if n == 1:
+        return 30
+
+    def f(x):
+        return int(
+            n
+            + x
+            + primepi(y := x >> 1)
+            - sum(mobius(k) * (y // k**2 + 1 >> 1) for k in range(1, isqrt(y) + 1, 2))
+        )
+
+    return bisection(f, n, n)
+
+
+def A392008(n):
+    def g(x, a, b, c, m):
+        yield from (
+            ((d,) for d in enumerate(primerange(b + 1, isqrt(x // c) + 1), a + 1))
+            if m == 2
+            else (
+                ((a2, b2),) + d
+                for a2, b2 in enumerate(
+                    primerange(b + 1, integer_nthroot(x // c, m)[0] + 1), a + 1
+                )
+                for d in g(x, a2, b2, c * b2, m - 1)
+            )
+        )
+
+    def f(x):
+        return int(
+            n
+            + x
+            - sum(
+                sum(
+                    primepi(x // prod(c[1] for c in a)) - a[-1][0]
+                    for a in g(x, 1, 2, 1, i)
+                )
+                for i in range(3, x.bit_length())
+            )
+        )
+
+    return bisection(f, n, n)
+
+
+def A392262(n):
+    def f(x):
+        return int(
+            n
+            + x
+            + 3
+            - sum(
+                mobius(k) * ((x >> 1) // k**2 + 1 >> 1)
+                for k in range(1, isqrt(x >> 1) + 1, 2)
+            )
+            - x.bit_length()
+        )
+
+    return bisection(f, n, n)
+
+
+def A264387(n):
+    def f(x):
+        return int(
+            n
+            + x
+            - sum(mobius(k) * (x // k**2 + 1 >> 1) for k in range(1, isqrt(x) + 1, 2))
+        )
+
+    return bisection(f, n, n) - 1 >> 1
+
+
+def A390289(n):
+    def f(x):
+        return (
+            n
+            + x
+            + 1
+            - sum(
+                mobius(k) * (x // k**3) for k in range(1, integer_nthroot(x, 3)[0] + 1)
+            )
+            + primepi(x)
+            + primepi(isqrt(x))
+        )
+
+    return iterfun(f, n)
+
+
+def A391023(n):
+    def f(x):
+        return (
+            n
+            + x
+            + primepi(isqrt(x))
+            + sum(
+                mobius(k) * (x // k**j) * (-1 if j & 1 else 1)
+                for j in range(2, 4)
+                for k in range(1, integer_nthroot(x, j)[0] + 1)
+            )
+        )
+
+    return bisection(f, n, n)
+
+
+def A378767(n):
+    def f(x):
+        return int(
+            n
+            + sum(primepi(integer_nthroot(x, k)[0]) for k in range(3, x.bit_length()))
+            + sum(
+                mobius(k) * (x // k**3) for k in range(1, integer_nthroot(x, 3)[0] + 1)
+            )
+        )
+
+    return bisection(f, n, n)
+
+
+def A056866_gen(startvalue=1):  # generator of terms >= startvalue
+    for n in count(max(startvalue, 1)):
+        if not (n % 5616 and n % 60):
+            yield n
+        else:
+            for p in primerange(3, n + 1):
+                a, b, c, d = (
+                    (1 << (p << 1)) - 1 << p,
+                    3**p * (3 ** (p << 1) - 1 >> 1),
+                    ((1 << (p << 1)) + 1) * ((1 << p) - 1) << (p << 1),
+                    p * (p**2 - 1) >> 1,
+                )
+                if min(a, b, c, d) > n:
+                    break
+                if not (
+                    n % a and n % b and n % c and (p <= 3 or (p**2 + 1) % 5 or n % d)
+                ):
+                    yield n
+                    break
+
+
+def A085736_gen(startvalue=1):  # generator of terms >= startvalue
+    for n in count(max(startvalue, 1)):
+        if n % 5616 and n % 60:
+            flag = True
+            for p in primerange(3, n + 1):
+                a, b, c, d = (
+                    (1 << (p << 1)) - 1 << p,
+                    3**p * (3 ** (p << 1) - 1 >> 1),
+                    ((1 << (p << 1)) + 1) * ((1 << p) - 1) << (p << 1),
+                    p * (p**2 - 1) >> 1,
+                )
+                if min(a, b, c, d) > n:
+                    break
+                if not (
+                    n % a and n % b and n % c and (p <= 3 or (p**2 + 1) % 5 or n % d)
+                ):
+                    flag = False
+                    break
+            if flag:
+                yield n
+
+
+def A392226_gen():  # generator of terms
+    for d in count(2):
+        c = []
+        for p, q in diop_quadratic(
+            10**d + symbolx * (10 ** (d + 1) + 1) - symboly**2, param=symbolt
+        ):
+            for i in count(0):
+                a = p.subs(symbolt, i)
+                if a >= 10**d:
+                    break
+                if 10 ** (d - 1) <= a:
+                    c.append(q.subs(symbolt, i) ** 2)
+        yield from sorted(c)
+
+
+def A392164(n):
+    def is_squarefree(n):
+        return max(factorint(n).values(), default=1) < 2
+
+    v = [e for e in list(range(1, n + 1)) if is_squarefree(2 * e)]
+    G = empty_graph(v)
+    G.add_edges_from((a, b) for a, b in combinations(v, 2) if is_squarefree(a + b))
+    return max(len(c) for c in find_cliques(G))
+
+
+def A392165_gen():  # generator of terms
+    def is_squarefree(n):
+        return max(factorint(n).values(), default=1) < 2
+
+    c, G = 0, empty_graph([])
+    for n in count(1, 2):
+        if is_squarefree(n):
+            G.add_node(n)
+            G.add_edges_from((a, n) for a in G if a != n and is_squarefree(a + n))
+            if (m := max(len(c) for c in find_cliques(G, [n]))) > c:
+                yield n
+                c = m
+
+
+def A359536(n):
+    def is_not_power_of_two(n):
+        return bool((n & -n) ^ n) if n else True
+
+    v = [e for e in list(range(n + 1)) if is_not_power_of_two(2 * e)]
+    G = empty_graph(v)
+    G.add_edges_from(
+        (a, b) for a, b in combinations(v, 2) if is_not_power_of_two(a + b)
+    )
+    return max(len(c) for c in find_cliques(G))
+
+
+def A362914(n):
+    v = list(range(1, n + 1))
+    G = empty_graph(v)
+    G.add_edges_from((a, b) for a, b in combinations(v, 2) if not isprime(abs(a - b)))
+    return max(len(c) for c in find_cliques(G))
+
+
+def A131849(n):
+    if n == 0:
+        return 0
+    v = list(range(1, n + 1))
+    G = empty_graph(v)
+    G.add_edges_from(
+        (a, b) for a, b in combinations(v, 2) if not isprime(abs(a - b) + 1)
+    )
+    return max(len(c) for c in find_cliques(G))
+
+
+def A362915(n):
+    v = list(range(1, n + 1))
+    G = empty_graph(v)
+    G.add_edges_from(
+        (a, b) for a, b in combinations(v, 2) if not isprime(abs(a - b) - 1)
+    )
+    return max(len(c) for c in find_cliques(G))
+
+
+def A363069(n):
+    if n == 0:
+        return 0
+    v = [d for d in range(1, n + 1) if not is_square(d << 1)]
+    G = empty_graph(v)
+    G.add_edges_from((a, b) for a, b in combinations(v, 2) if not is_square(a + b))
+    return max(len(c) for c in find_cliques(G))
+
+
+def A210570_gen():  # generator of terms
+    c, G = 0, empty_graph([])
+    for n in count(1):
+        G.add_node(n)
+        G.add_edges_from((a, n) for a in G if a != n and not is_square(n - a))
+        if (m := max(len(c) for c in find_cliques(G, nodes=[n]))) > c:
+            yield n
+            c = m
+
+
+def A391115(n):
+    def f(x):
+        c = (
+            n
+            - 1
+            + sum(
+                mobius(k) * (x // k**4) for k in range(1, integer_nthroot(x, 4)[0] + 1)
+            )
+        )
+        for u in range(1, integer_nthroot(x, 7)[0] + 1):
+            if all(d <= 1 for d in factorint(u).values()):
+                for w in range(1, integer_nthroot(a := x // u**7, 6)[0] + 1):
+                    if gcd(w, u) == 1 and all(d <= 1 for d in factorint(w).values()):
+                        for y in range(1, integer_nthroot(z := a // w**6, 5)[0] + 1):
+                            if (
+                                gcd(w, y) == 1
+                                and gcd(u, y) == 1
+                                and all(d <= 1 for d in factorint(y).values())
+                            ):
+                                c += integer_nthroot(z // y**5, 4)[0]
+        return c
+
+    return bisection(f, n, n)
+
+
+def A362148(n):
+    def f(x):
+        c = (
+            n
+            - 1
+            + sum(
+                mobius(k) * (x // k**3) for k in range(1, integer_nthroot(x, 3)[0] + 1)
+            )
+        )
+        for w in range(1, integer_nthroot(x, 5)[0] + 1):
+            if all(d <= 1 for d in factorint(w).values()):
+                for y in range(1, integer_nthroot(z := x // w**5, 4)[0] + 1):
+                    if gcd(w, y) == 1 and all(d <= 1 for d in factorint(y).values()):
+                        c += integer_nthroot(z // y**4, 3)[0]
+        return c
+
+    return bisection(f, n, n)
+
+
+def A392366(n):
+    def f(x):
+        return int(
+            n
+            + x
+            - sum(
+                mobius(k) * (isqrt(x) // k**2 + 1 >> 1)
+                for k in range(1, integer_nthroot(x, 4)[0] + 1, 2)
+            )
+        )
+
+    return bisection(f, n, n)
+
+
+def A381822(n):
+    def f(x):
+        return int(
+            n
+            + x
+            - sum(
+                mobius(k) * (x // k**3 + 1 >> 1)
+                for k in range(1, integer_nthroot(x, 3)[0] + 1, 2)
+            )
+        )
+
+    return iterfun(f, n)
+
+
+def A392365(n):
+    def f(x):
+        return int(
+            n
+            + x
+            - sum(
+                mobius(k) * (isqrt(x) // k**3)
+                for k in range(1, integer_nthroot(x, 6)[0] + 1)
+            )
+        )
+
+    return bisection(f, n, n)
+
+
+def A178854(n):
+    return binom_mod(((m := 1 << n) << 1) - 2, m - 1, m**2) >> n
+
+
+def A004782_gen(startvalue=2):  # generator of terms >= startvalue
+    for k in count(max(startvalue, 2)):
+        if not binom_mod(k - 1 << 1, k - 1, k * (k - 1)):
+            yield k
+
+
+def A084699_gen(startvalue=4):  # generator of terms >= startvalue
+    for j in count(max(startvalue, 4)):
+        if not isprime(j) and binom_mod(j << 1, j, j) == pow(2, j, j):
+            yield j
+
+
+def A359301_gen():  # generator of terms
+    c, G = 0, empty_graph([])
+    for n in count(1):
+        G.add_node(n)
+        e = [(a, n) for a in G if a != n and not isprime(abs(a - n) + 1)]
+        G.add_edges_from(e)
+        if len(e) >= c and (m := max(len(c) for c in find_cliques(G, nodes=[n]))) > c:
+            yield n
+            c = m
+
+
+def A260641_gen(startvalue=2):  # generator of terms >= startvalue
+    for k in count(max(startvalue, 2)):
+        m = (1 << k) - 1
+        if not binom_mod(m - 1 << 1, m - 1, m * (m - 1)) and binom_mod(
+            m << 1, m, m**2 - 1
+        ):
+            yield k
+
+
+def A128106_gen():  # generator of terms
+    yield 1
+    for n in count(1):
+        if not any(d & 3 == 3 and e & 1 for d, e in factorint(n).items()):
+            yield n << 1
+
+
+def A210380_gen():  # generator of terms
+    c, G = 0, empty_graph([])
+    for n in count(1):
+        G.add_node(n)
+        G.add_edges_from((a, n) for a in G if a != n and not is_square(n + a))
+        if (m := max(len(c) for c in find_cliques(G, nodes=[n]))) > c:
+            yield n
+            c = m
+
+
+def A390616(n):
+    return (
+        ((m := (n << 1) - 1) // 3 + bool(m % 3)) * ((h := integer_log(m, 3)[0]) - 1)
+        + n
+        - (3**h - 1 >> 1)
+    )
