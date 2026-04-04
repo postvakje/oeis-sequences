@@ -59,6 +59,7 @@ Boustrophedon transform, run length transform, lunar arithmetic, etc.
 from __future__ import print_function, division
 import sys, bisect, re
 import sympy, itertools
+from heapq import heappop, heappush
 from os.path import commonprefix
 from functools import lru_cache, reduce
 from itertools import (
@@ -157,6 +158,7 @@ from sympy import (
     kronecker_symbol,
     Mod,
     rem,
+    symbols,
 )
 from sympy.functions import hyper, euler
 from sympy.ntheory import (
@@ -171,7 +173,6 @@ from sympy.ntheory.factor_ import (
     digits as sympydigits,
     udivisor_sigma,
     sieve,
-    reduced_totient,
     core as numbercore,
     antidivisors,
     udivisors,
@@ -185,7 +186,13 @@ from sympy.utilities.iterables import (
     multiset_combinations,
     multiset_partitions,
 )
-from sympy.functions.combinatorial.numbers import stirling, bell, primeomega, primenu
+from sympy.functions.combinatorial.numbers import (
+    stirling,
+    bell,
+    primeomega,
+    primenu,
+    reduced_totient,
+)
 from sympy.ntheory.continued_fraction import (
     continued_fraction,
     continued_fraction_periodic,
@@ -608,6 +615,8 @@ def almostprimepi(n, k):
     """number of k-almost primes <= n"""
     if k == 0:
         return int(n >= 1)
+    if n.bit_length() <= k:
+        return 0
 
     def g(x, a, b, c, m):
         yield from (
@@ -633,6 +642,8 @@ def squarefreealmostprimepi(n, k):
     """number of squarefree k-almost primes <= n"""
     if k == 0:
         return int(n >= 1)
+    if primorial(k) > n:
+        return 0
 
     def g(x, a, b, c, m):
         yield from (
@@ -29459,11 +29470,13 @@ def A201555(n):
 
 
 def A007843(n):
+    if n == 0:
+        return 1
     c = 0
-    for k in count(1):
+    for k in count(2, 2):
         c += (~k & k - 1).bit_length()
-        if c >= n:
-            return k
+        if c + k + 1 >= n:
+            return (max(k, n - c) if n > 1 else n + 1 - c) << 1
 
 
 def A003602(n):
@@ -58449,19 +58462,13 @@ def A046895(n):
     return (
         1
         + (
-            (
-                -((s := isqrt(n)) ** 2) * (s + 1)
-                + sum((q := n // k) * ((k << 1) + q + 1) for k in range(1, s + 1))
-                & -1
-            )
+            -((s := isqrt(n)) ** 2) * (s + 1)
+            + sum((q := n // k) * ((k << 1) + q + 1) for k in range(1, s + 1))
             << 2
         )
         + (
-            (
-                (t := isqrt(m := n >> 2)) ** 2 * (t + 1)
-                - sum((q := m // k) * ((k << 1) + q + 1) for k in range(1, t + 1))
-                & -1
-            )
+            (t := isqrt(m := n >> 2)) ** 2 * (t + 1)
+            - sum((q := m // k) * ((k << 1) + q + 1) for k in range(1, t + 1))
             << 4
         )
     )
@@ -58471,19 +58478,13 @@ def A373882(n):
     return (
         1
         + (
-            (
-                -((s := isqrt(a := 10**n)) ** 2) * (s + 1)
-                + sum((q := a // k) * ((k << 1) + q + 1) for k in range(1, s + 1))
-                & -1
-            )
+            -((s := isqrt(a := 10**n)) ** 2) * (s + 1)
+            + sum((q := a // k) * ((k << 1) + q + 1) for k in range(1, s + 1))
             << 2
         )
         + (
-            (
-                (t := isqrt(m := a >> 2)) ** 2 * (t + 1)
-                - sum((q := m // k) * ((k << 1) + q + 1) for k in range(1, t + 1))
-                & -1
-            )
+            (t := isqrt(m := a >> 2)) ** 2 * (t + 1)
+            - sum((q := m // k) * ((k << 1) + q + 1) for k in range(1, t + 1))
             << 4
         )
     )
@@ -65517,42 +65518,6 @@ def A371195(n):
     return (k := bisection(f, m := f(f(n)), m)) ** 4 * (k - 1)
 
 
-def A368325(n):
-    @lru_cache(maxsize=None)
-    def g(x):
-        return primorial(x)
-
-    def f(x):
-        c = n + x - x.bit_length()
-        kmin, kmax = 1, 2
-        while g(kmax) <= x:
-            kmax <<= 1
-        kmin = kmax >> 1
-        while True:
-            kmid = kmax + kmin >> 1
-            if g(kmid) > x:
-                kmax = kmid
-            else:
-                kmin = kmid
-            if kmax - kmin <= 1:
-                break
-        return c - kmin
-
-    kmin, kmax = 1, 2
-    while f(kmax) >= kmax:
-        kmax <<= 1
-    kmin = kmax >> 1
-    while True:
-        kmid = kmax + kmin >> 1
-        if f(kmid) < kmid:
-            kmax = kmid
-        else:
-            kmin = kmid
-        if kmax - kmin <= 1:
-            break
-    return kmax
-
-
 def A375580(n):
     return sum(
         1
@@ -70147,6 +70112,10 @@ def A376089_gen(startvalue=1):  # generator of terms >= startvalue
 
 def A336175(n):
     @lru_cache(maxsize=None)
+    def squarefreepi(n):
+        return int(sum(mobius(k) * (n // k**2) for k in range(1, isqrt(n) + 1)))
+
+    @lru_cache(maxsize=None)
     def g(x):
         c, l = 0, 0
         j = isqrt(x)
@@ -70188,6 +70157,10 @@ def A332785(n):
 
 
 def A336178(n):
+    @lru_cache(maxsize=None)
+    def squarefreepi(n):
+        return int(sum(mobius(k) * (n // k**2) for k in range(1, isqrt(n) + 1)))
+
     @lru_cache(maxsize=None)
     def g(x):
         c, l = 0, 0
@@ -88281,13 +88254,6 @@ def A080259_gen(startvalue=2):  # generator of terms >= startvalue
             yield k
 
 
-def A055932_gen(startvalue=1):  # generator of terms >= startvalue
-    for k in count(max(startvalue, 1)):
-        p = list(map(primepi, primefactors(k)))
-        if k == 1 or (min(p) == 1 and max(p) == len(p)):
-            yield k
-
-
 def A064944(n):
     return sum(a * b for a, b in enumerate(divisors(n), 1))
 
@@ -95716,3 +95682,4599 @@ def A393226(n):
 
 def A393198(n):
     return next(m for m in count(2) if isprime(sympydigits(n, m).count("1")))
+
+
+def A393417(n):
+    p = [prime(i) for i in range(1, n + 1 << 1)]
+    r = [q % n for q in p]
+    while True:
+        if r[: (t := len(r) + 1 >> 1)] == r[: -t - 1 : -1]:
+            return p[0]
+        p = p[1:] + [m := nextprime(p[-1])]
+        r = r[1:] + [m % n]
+
+
+def A066096(n):
+    return n + isqrt(5 * n**2) >> 1
+
+
+def A004956(n):
+    return (n + isqrt(5 * n**2) >> 1) + bool(n)
+
+
+def A004957(n):
+    return (n + isqrt(5 * n**2) >> 1) + n + bool(n)
+
+
+def A329825(n):
+    return 3 * n + isqrt(17 * n**2) >> 2
+
+
+def A000605(n):
+    return 1 + (
+        (n << 1)
+        + sum(
+            1
+            + ((s := isqrt(t := (n + k) * (n - k))) << 1)
+            + (sum(isqrt(t - m**2) for m in range(s + 1)) << 2)
+            for k in range(1, n + 1)
+        )
+        << 1
+    )
+
+
+def A046896_gen():  # generator of terms
+    c = 0
+    for n in count(0):
+        c += int(
+            divisor_sigma(n) << 3
+            if n & 1
+            else 3 * divisor_sigma(n >> (~n & n - 1).bit_length()) << 3 if n else 1
+        )
+        if is_square(c):
+            yield c
+
+
+def A016725(n):
+    return (
+        6
+        * prod(
+            p**e + (0 if p & 3 == 1 else (p**e - 1) // (p - 1) << 1)
+            for p, e in factorint(n >> (~n & n - 1).bit_length()).items()
+        )
+        if n
+        else 1
+    )
+
+
+def A267309(n):
+    return 6 * sum(
+        prod(
+            p**e + (0 if p & 3 == 1 else (p**e - 1) // (p - 1) << 1)
+            for p, e in factorint(m >> (~m & m - 1).bit_length()).items()
+        )
+        for m in range(1, n + 1)
+    )
+
+
+def A386315(n):
+    return A004018(m := n**2 << 1) + (
+        sum(A004018(m - k**2) for k in range(1, isqrt(m) + 1)) << 1
+    )
+
+
+def A078183(n):
+    return (
+        1
+        + (
+            (n << 1)
+            + sum(
+                1
+                + ((s := isqrt(t := (n + k) * (n - k))) << 1)
+                + (sum(isqrt(t - m**2) for m in range(s + 1)) << 2)
+                for k in range(1, n + 1)
+            )
+            << 1
+        )
+        - 6
+        * prod(
+            p**e + (0 if p & 3 == 1 else (p**e - 1) // (p - 1) << 1)
+            for p, e in factorint(n >> (~n & n - 1).bit_length()).items()
+        )
+        if n
+        else 0
+    )
+
+
+def A078184(n):
+    return (
+        (
+            (n + 1 << 1)
+            + sum(
+                1
+                + ((s := isqrt(t := (n + 1 + k) * (n + 1 - k))) << 1)
+                + (sum(isqrt(t - m**2) for m in range(s + 1)) << 2)
+                for k in range(1, n + 2)
+            )
+            << 1
+        )
+        - 6
+        * prod(
+            p**e + (0 if p & 3 == 1 else (p**e - 1) // (p - 1) << 1)
+            for p, e in factorint(n + 1 >> (~(n + 1) & n).bit_length()).items()
+        )
+        - (
+            (n << 1)
+            + sum(
+                1
+                + ((s := isqrt(t := (n + k) * (n - k))) << 1)
+                + (sum(isqrt(t - m**2) for m in range(s + 1)) << 2)
+                for k in range(1, n + 1)
+            )
+            << 1
+        )
+    )
+
+
+def A175362(n):
+    return (
+        sum(
+            integer_nthroot(n - x**3, 3)[1]
+            for x in range(1, integer_nthroot(n, 3)[0] + 1)
+        )
+        << 2
+        if n
+        else 1
+    )
+
+
+def A175365(n):
+    return A175362(n) + (
+        sum(A175362(n - x**3) for x in range(1, integer_nthroot(n, 3)[0] + 1)) << 1
+    )
+
+
+def A175363(n):
+    return 1 + (
+        sum(
+            integer_nthroot(n - k**3, 3)[0] for k in range(integer_nthroot(n, 3)[0] + 1)
+        )
+        << 2
+    )
+
+
+def A175366(n):
+    return A175363(n) + (
+        sum(A175363(n - k**3) for k in range(1, integer_nthroot(n, 3)[0] + 1)) << 1
+    )
+
+
+def A175375(n):
+    def f(n):
+        return (
+            sum(
+                integer_nthroot(n - x**4, 4)[1]
+                for x in range(1, integer_nthroot(n, 4)[0] + 1)
+            )
+            << 2
+            if n
+            else 1
+        )
+
+    return f(n) + (
+        sum(f(n - x**4) for x in range(1, integer_nthroot(n, 4)[0] + 1)) << 1
+    )
+
+
+def A175376(n):
+    return (
+        f := lambda m: 1
+        + (sum(isqrt(isqrt(m - t**4)) for t in range(isqrt(isqrt(m)) + 1)) << 2)
+    )(n) + (sum(f(n - k**4) for k in range(1, isqrt(isqrt(n)) + 1)) << 1)
+
+
+def A175373(n):
+    return 1 + (sum(isqrt(isqrt(n - x**4)) for x in range(isqrt(isqrt(n)) + 1)) << 2)
+
+
+def A393346(n):
+    return n**2 * (n + 3) // 3
+
+
+def A393347(n):
+    return (lambda x: x[0] + bool(x[1]))(divmod(n**2 * (n + 3), 3))
+
+
+def A392105(n):
+    return sum(divmod(n**2 * (n + 2), 2))
+
+
+def A351899_gen(startvalue=1):  # generator of terms >= startvalue
+    for k in count(max(startvalue, 1)):
+        f, t = set(primefactors(k)), reduced_totient(k)
+        plist = [p for p in primerange(k) if p not in f]
+        for p, q in combinations(plist, 2):
+            for i, j in product(range(t + 1), repeat=2):
+                r = pow(p, i, k) * pow(q, j, k) % k
+                if r != 1 and r % p and r % q:
+                    break
+            else:
+                yield k
+                break
+
+
+def A002034(n):
+    m = 1
+    for p, e in factorint(n).items():
+        if e <= p:
+            m = max(m, e * p)
+        else:
+            c, a = 0, max(p, (e * (p - 1) // p**2) * p)
+            b = a - p
+            while b > 0:
+                c += (b := b // p)
+            for k in count(a, p):
+                c += multiplicity(p, k) if p > 2 else (~k & k - 1).bit_length()
+                if c + k + p > e:
+                    m = max(m, p * (max(k, e - c) if e >= p else e + 1 - c))
+                    break
+    return m
+
+
+def A038024(n):
+    if n == 1:
+        return 1
+    a = sum((Counter(factorint(i)) for i in range(2, n)), start=Counter())
+    return prod(e + 1 for e in (a + Counter(factorint(n))).values()) - prod(
+        e + 1 for e in a.values()
+    )
+
+
+def A046699(n):
+    if n == 1:
+        return 1
+    c = 0
+    for k in count(2, 2):
+        c += (~k & k - 1).bit_length()
+        if c + k + 2 >= n:
+            return max(k, n - c - 1) if n > 2 else n - c
+
+
+def A029715(n):
+    a, m, c = 0, 0, 0
+    for k in count(1):
+        c += (~k & k - 1).bit_length()
+        if c + k >= m:
+            a += k * (min(c + k - m, n - m) + 1)
+            m = c + k + 1
+        if c + k >= n:
+            return (a << 1) - 1
+
+
+def A007844(n):
+    if n == 0:
+        return 1
+    c = 0
+    for k in count(3, 3):
+        c += multiplicity(3, k)
+        if c + k + 3 > n:
+            return 3 * (max(k, n - c) if n >= 3 else n + 1 - c)
+
+
+def A120503(n):
+    c = 0
+    for k in count(3, 3):
+        c += multiplicity(3, k)
+        if c + k + 3 > n:
+            return max(k, n - c) if n >= 3 else n + 1 - c
+
+
+def A029714(n):
+    a, m, c = 0, 0, 0
+    for k in count(1):
+        c += multiplicity(3, k)
+        if c + k >= m:
+            a += k * (min(c + k - m, n - m) + 1)
+            m = c + k + 1
+        if c + k >= n:
+            return 3 * a - 2
+
+
+def A007845(n):
+    if n == 0:
+        return 1
+    c = 0
+    for k in count(5, 5):
+        c += multiplicity(5, k)
+        if c + k + 5 > n:
+            return 5 * (max(k, n - c) if n >= 5 else n + 1 - c)
+
+
+def A228297(n):
+    c = 0
+    for k in count(5, 5):
+        c += multiplicity(5, k)
+        if c + k + 5 > n:
+            return max(k, n - c) if n >= 5 else n + 1 - c
+
+
+def A020646(n):
+    if n == 0:
+        return 1
+    c = 0
+    for k in count(7, 7):
+        c += multiplicity(7, k)
+        if c + k + 7 > n:
+            return 7 * (max(k, n - c) if n >= 7 else n + 1 - c)
+
+
+def A120514(n):
+    return n + sum(multiplicity(3, j) for j in range(3, n, 3))
+
+
+def A048841(n):
+    if n == 0:
+        return 1
+    c = 0
+    for k in count(11, 11):
+        c += multiplicity(11, k)
+        if c + k + 11 > n:
+            return 11 * (max(k, n - c) if n >= 11 else n + 1 - c)
+
+
+def A048842(n):
+    if n == 0:
+        return 1
+    c = 0
+    for k in count(13, 13):
+        c += multiplicity(13, k)
+        if c + k + 13 > n:
+            return 13 * (max(k, n - c) if n >= 13 else n + 1 - c)
+
+
+def A048843(n):
+    if n == 0:
+        return 1
+    c = 0
+    for k in count(17, 17):
+        c += multiplicity(17, k)
+        if c + k + 17 > n:
+            return 17 * (max(k, n - c) if n >= 17 else n + 1 - c)
+
+
+def A048844(n):
+    if n == 0:
+        return 1
+    c = 0
+    for k in count(19, 19):
+        c += multiplicity(19, k)
+        if c + k + 19 > n:
+            return 19 * (max(k, n - c) if n >= 19 else n + 1 - c)
+
+
+def A048845(n):
+    if n == 0:
+        return 1
+    c = 0
+    for k in count(23, 23):
+        c += multiplicity(23, k)
+        if c + k + 23 > n:
+            return 23 * (max(k, n - c) if n >= 23 else n + 1 - c)
+
+
+def A048846(n):
+    if n == 0:
+        return 1
+    c = 0
+    for k in count(29, 29):
+        c += multiplicity(29, k)
+        if c + k + 29 > n:
+            return 29 * (max(k, n - c) if n >= 29 else n + 1 - c)
+
+
+def A079559(n):
+    c, flag = 0, True
+    for k in count(2, 2):
+        c += (~k & k - 1).bit_length()
+        if (m := c + k + 2) > n and flag:
+            t = max(k, n - c) if n > 1 else n + 1 - c
+            flag = False
+        if m > n + 1:
+            return max(k, n - c + 1) - t if n > 0 else n + 2 - c - t
+
+
+def A043545(n):
+    return int(bool(n & n + 1))
+
+
+def A210337(n):
+    m, f, s = 1 << n, 1, set()
+    for i in count(1):
+        if not (f := f * i % m):
+            return sum(s)
+        s.add(f)
+
+
+def A210184(n):
+    m, f, s = prime(n), 1, set()
+    for i in count(1):
+        s.add(f := f * i % m)
+        if not f:
+            return len(s)
+
+
+def A210185(n):
+    m, f, s = prime(n), 1, set()
+    for i in count(1):
+        if not (f := f * i % m):
+            return sum(s)
+        s.add(f)
+
+
+def A341680(n):
+    if n == 0:
+        return 0
+    m, f, c = 1 << n, 1, 1
+    for i in count(1):
+        if not (f := f * i % m):
+            return c
+        c = (c + f) % m
+
+
+def A341681(n):
+    if n == 0:
+        return 0
+    m, f, c = 3**n, 1, 1
+    for i in count(1):
+        if not (f := f * i % m):
+            return c
+        c = (c + f) % m
+
+
+def A341682(n):
+    if n == 0:
+        return 0
+    m, f, c = 5**n, 1, 1
+    for i in count(1):
+        if not (f := f * i % m):
+            return c
+        c = (c + f) % m
+
+
+def A341683(n):
+    if n == 0:
+        return 0
+    m, f, c = 7**n, 1, 1
+    for i in count(1):
+        if not (f := f * i % m):
+            return c
+        c = (c + f) % m
+
+
+def A392345_gen():  # generator of terms
+    s = set()
+    for n in count(1):
+        if (
+            a := n_order(
+                10, (n >> (~n & n - 1).bit_length()) // 5 ** multiplicity(5, n)
+            )
+        ) not in s:
+            yield a
+            s.add(a)
+
+
+def A346211_gen(startvalue=1):  # generator of terms >= startvalue
+    a = A002034((s := max(startvalue, 1)) - 1)
+    for i in count(s):
+        b = A002034(i)
+        if abs(b - a) == 1:
+            yield i - 1
+        a = b
+
+
+def A073307_gen(startvalue=1):  # generator of terms >= startvalue
+    for k in count(max(startvalue, 1)):
+        f = factorint(k).items()
+        if A002034_fs(f) == prod(e + 1 for p, e in f):
+            yield k
+
+
+def A346212_gen(startvalue=1):  # generator of terms >= startvalue
+    a = A002034((s := max(startvalue, 1)) - 1)
+    flag = max(factorint(s - 1).values(), default=1) < 2
+    for i in count(s):
+        f = factorint(i)
+        b = A002034(i)
+        f2 = max(f.values(), default=1) < 2
+        if flag and f2 and abs(b - a) == 2:
+            yield i - 1
+        a = b
+        flag = f2
+
+
+def A049046(n):
+    if n == 1:
+        return 0
+    f, c = 1, 0
+    for i in count(1):
+        f = f * i % n
+        if f == 1:
+            c += 1
+        if f == 0:
+            return c
+
+
+def A053050(n):
+    f = 0
+    for i in count(1):
+        if not (f := (f + prime(i)) % n):
+            return i
+
+
+def A038203(n):
+    f, s = 1, set()
+    for i in count(1):
+        s.add(f := f * i % n)
+        if f == 0:
+            return len(s)
+
+
+def A122416(n):
+    m = 2
+    for p, e in factorint(n).items():
+        if e <= p:
+            m = max(m, e * p + 1)
+        else:
+            c, a = 0, max(p, (e * (p - 1) // p**2) * p)
+            b = a - p
+            while b > 0:
+                c += (b := b // p)
+            for k in count(a, p):
+                c += multiplicity(p, k) if p > 2 else (~k & k - 1).bit_length()
+                if c + k + p > e:
+                    m = max(m, 1 + p * (max(k, e - c) if e >= p else e + 1 - c))
+                    break
+    return m
+
+
+def A085779(n):
+    m = 1
+    f = Counter(factorint(n)) + Counter(factorint(n + 1))
+    f[2] -= 1
+    for p, e in f.items():
+        if e <= p:
+            m = max(m, e * p)
+        else:
+            c, a = 0, max(p, (e * (p - 1) // p**2) * p)
+            b = a - p
+            while b > 0:
+                c += (b := b // p)
+            for k in count(a, p):
+                c += multiplicity(p, k) if p > 2 else (~k & k - 1).bit_length()
+                if c + k + p > e:
+                    m = max(m, p * (max(k, e - c) if e >= p else e + 1 - c))
+                    break
+    return m
+
+
+def A093896(n):
+    m = 1
+    for p, e in factorint(n).items():
+        g = e * n
+        if g <= p:
+            m = max(m, g * p)
+        else:
+            c, a = 0, max(p, (g * (p - 1) // p**2) * p)
+            b = a - p
+            while b > 0:
+                c += (b := b // p)
+            for k in count(a, p):
+                c += multiplicity(p, k) if p > 2 else (~k & k - 1).bit_length()
+                if c + k + p > g:
+                    m = max(m, p * (max(k, g - c) if g >= p else g + 1 - c))
+                    break
+    return m
+
+
+def A215454(n):
+    m = 1
+    for p, e in factorint(n).items():
+        g = e << 1
+        if g <= p:
+            m = max(m, g * p)
+        else:
+            c, a = 0, max(p, (g * (p - 1) // p**2) * p)
+            b = a - p
+            while b > 0:
+                c += (b := b // p)
+            for k in count(a, p):
+                c += multiplicity(p, k) if p > 2 else (~k & k - 1).bit_length()
+                if c + k + p > g:
+                    m = max(m, p * (max(k, g - c) if g >= p else g + 1 - c))
+                    break
+    return m
+
+
+def A393336(n):
+    return (
+        (sum(i if j == "1" else 0 for i, j in enumerate(bin(n)[:1:-1], 1)) << 1)
+        - comb(n.bit_length() + 1, 2)
+        if n
+        else -1
+    )
+
+
+def A309983(n):
+    return (sum(i if j == "1" else 0 for i, j in enumerate(bin(n)[:1:-1])) << 1) - comb(
+        n.bit_length(), 2
+    )
+
+
+def A390551(n):
+    return (
+        (k := n.bit_length()) * comb(n + 1, 2)
+        - (k - 1) * comb(1 << k - 1, 2)
+        + sum(i * (j := 1 << i - 1) * (6 * j - 1) for i in range(1, k - 1))
+        if n
+        else 0
+    )
+
+
+def A393414(n):
+    return (lambda x: int(29 * x[0] - 8 * x[1]))(fib2(n + 1))
+
+
+def A030530(n):
+    def g(x):
+        return x + 2 + (x + 1) * (m := (x + 1).bit_length()) - (1 << m)
+
+    def f(x):
+        return n + 1 + bsearch(g, x)
+
+    return bisection(f, n + 1, n + 1) - n - (not n)
+
+
+def A061017(n):
+    def g(x):
+        return x - (s := isqrt(x)) ** 2 + (sum(x // k for k in range(1, s + 1)) << 1)
+
+    def f(x):
+        return n + bsearch(g, x)
+
+    return bisection(f, n, n) - n + 1
+
+
+def A088526(n):
+    def g(x):
+        return x - (s := isqrt(x)) ** 2 + (sum(x // k for k in range(1, s + 1)) << 1)
+
+    def f(x):
+        return n + bsearch(g, x)
+
+    return bisection(f, n, n) - n - primepi(n)
+
+
+def A098357(n):
+    def g(x):
+        return x - (s := isqrt(x)) ** 2 + (sum(x // k for k in range(1, s + 1)) << 1)
+
+    def f(x):
+        return n + bsearch(g, x)
+
+    return bisection(f, n, n) - n - primepi(n + 1) + 1
+
+
+def A164632(n):
+    if n == 1:
+        return 1
+
+    def g(x):
+        return x + ((1 << (x << 1)) - 1 << 1) // 3
+
+    def f(x):
+        return n - 1 + bsearch(g, x)
+
+    return 1 << bisection(f, n - 1, n - 1) - n + 2
+
+
+def A130819(n):
+    return isqrt(n - 1) + 1 << 1
+
+
+def A228372(n):
+    return (
+        -((m := composite(n)) << 1)
+        + 1
+        - (s := isqrt(m)) ** 2
+        + (sum(m // k for k in range(1, s + 1)) << 1)
+    )
+
+
+def A144925(n):
+    return divisor_count(composite(n)) - 2
+
+
+def A228363(n):
+    if n == 1:
+        return 4
+
+    def g(x):
+        return (
+            x
+            - ((m := composite(x)) << 1)
+            + 1
+            - (s := isqrt(m)) ** 2
+            + (sum(m // k for k in range(1, s + 1)) << 1)
+        )
+
+    def f(x):
+        return n + bsearch(g, x)
+
+    return composite(bisection(f, n + 1, n + 1) - n + 1)
+
+
+def A163838(n):
+    return (m := composite(n)) * (divisor_count(m) - 2)
+
+
+def A100470(n):
+    def g(x):
+        return x + (m := len(str(x))) * (x + 1) - 10 * (10 ** (m - 1) - 1) // 9
+
+    def f(x):
+        return n + 1 + bsearch(g, x)
+
+    return bisection(f, n + 1, n + 1) - n - (not n)
+
+
+def A117804(n):
+    return 1 + (m := len(str(n))) * n - (10**m - 1) // 9
+
+
+def A007376(n):
+    def g(x):
+        return x + (m := len(str(x))) * (x + 1) - 10 * (10 ** (m - 1) - 1) // 9
+
+    def f(x):
+        return n + 1 + bsearch(g, x)
+
+    return int(
+        (s := str(a := bisection(f, n + 1, n + 1) - n - (not n)))[
+            n - 1 - a * (k := len(s)) + (10**k - 1) // 9
+        ]
+    )
+
+
+def A033307(n):
+    def g(x):
+        return x + (m := len(str(x))) * (x + 1) - 10 * (10 ** (m - 1) - 1) // 9
+
+    def f(x):
+        return n + 2 + bsearch(g, x)
+
+    return int(
+        (s := str(a := bisection(f, n + 2, n + 2) - n - 1))[
+            n - a * (k := len(s)) + (10**k - 1) // 9
+        ]
+    )
+
+
+def A030302(n):
+    if n == 1:
+        return 1
+
+    def g(x):
+        return x + (m := x.bit_length()) * (x + 1) - ((1 << m - 1) - 1 << 1)
+
+    def f(x):
+        return n + 1 + bsearch(g, x)
+
+    return int(
+        (s := bin(a := bisection(f, n + 1, n + 1) - n)[2:])[
+            n - 1 - a * (k := len(s)) + ((1 << k) - 1)
+        ]
+    )
+
+
+def A003137(n):
+    def g(x):
+        return x + (m := len(gmpy2digits(x, 3))) * (x + 1) - 3 * (3 ** (m - 1) - 1) // 2
+
+    def f(x):
+        return n + 1 + bsearch(g, x)
+
+    return int(
+        (s := gmpy2digits(a := bisection(f, n + 1, n + 1) - n, 3))[
+            n - 1 - a * (k := len(s)) + (3**k - 1 >> 1)
+        ]
+    )
+
+
+def A030373(n):
+    if n == 1:
+        return 1
+
+    def g(x):
+        return (
+            x
+            + (m := x.bit_length() + 1 >> 1) * (x + 1)
+            - ((1 << (m - 1 << 1)) - 1 << 2) // 3
+        )
+
+    def f(x):
+        return n + 1 + bsearch(g, x)
+
+    return int(
+        (s := gmpy2digits(a := bisection(f, n + 1, n + 1) - n, 4))[
+            n - 1 - a * (k := len(s)) + ((1 << (k << 1)) - 1) // 3
+        ]
+    )
+
+
+def A031219(n):
+    def g(x):
+        return (
+            x + (m := len(gmpy2digits(x, 5))) * (x + 1) - (5 * (5 ** (m - 1) - 1) >> 2)
+        )
+
+    def f(x):
+        return n + 1 + bsearch(g, x)
+
+    return int(
+        (s := gmpy2digits(a := bisection(f, n + 1, n + 1) - n, 5))[
+            n - 1 - a * (k := len(s)) + (5**k - 1 >> 2)
+        ]
+    )
+
+
+def A030548(n):
+    def g(x):
+        return x + (m := len(gmpy2digits(x, 6))) * (x + 1) - 6 * (6 ** (m - 1) - 1) // 5
+
+    def f(x):
+        return n + 1 + bsearch(g, x)
+
+    return int(
+        (s := gmpy2digits(a := bisection(f, n + 1, n + 1) - n, 6))[
+            n - 1 - a * (k := len(s)) + (6**k - 1) // 5
+        ]
+    )
+
+
+def A030998(n):
+    if n == 0:
+        return 0
+
+    def g(x):
+        return x + (m := len(gmpy2digits(x, 7))) * (x + 1) - 7 * (7 ** (m - 1) - 1) // 6
+
+    def f(x):
+        return n + 1 + bsearch(g, x)
+
+    return int(
+        (s := gmpy2digits(a := bisection(f, n + 1, n + 1) - n, 7))[
+            n - 1 - a * (k := len(s)) + (7**k - 1) // 6
+        ]
+    )
+
+
+def A031035(n):
+    def g(x):
+        return (
+            x
+            + (m := (x.bit_length() + 2) // 3) * (x + 1)
+            - ((1 << 3 * (m - 1)) - 1 << 3) // 7
+            if x
+            else 1
+        )
+
+    def f(x):
+        return n + 1 + bsearch(g, x)
+
+    return int(
+        (s := oct(a := bisection(f, n + 1, n + 1) - n)[2:])[
+            n - 1 - a * (k := len(s)) + ((1 << 3 * k) - 1) // 7
+        ]
+    )
+
+
+def A054634(n):
+    if n == 0:
+        return 0
+
+    def g(x):
+        return (
+            x
+            + (m := (x.bit_length() + 2) // 3) * (x + 1)
+            - ((1 << 3 * (m - 1)) - 1 << 3) // 7
+            if x
+            else 1
+        )
+
+    def f(x):
+        return n + 1 + bsearch(g, x)
+
+    return int(
+        (s := oct(a := bisection(f, n + 1, n + 1) - n)[2:])[
+            n - 1 - a * (k := len(s)) + ((1 << 3 * k) - 1) // 7
+        ]
+    )
+
+
+def A031076(n):
+    def g(x):
+        return x + (m := len(gmpy2digits(x, 9))) * (x + 1) - 9 * (9 ** (m - 1) - 1 >> 3)
+
+    def f(x):
+        return n + 1 + bsearch(g, x)
+
+    return int(
+        (s := gmpy2digits(a := bisection(f, n + 1, n + 1) - n, 9))[
+            n - 1 - a * (k := len(s)) + (9**k - 1 >> 3)
+        ]
+    )
+
+
+def A275993(n):
+    if n == 0:
+        return 0
+
+    def g(x):
+        return (
+            x
+            + (m := (x.bit_length() + 3 >> 2)) * (x + 1)
+            - ((1 << (m - 1 << 2)) - 1 << 4) // 15
+            if x
+            else 1
+        )
+
+    def f(x):
+        return n + 1 + bsearch(g, x)
+
+    return int(
+        (s := hex(a := bisection(f, n + 1, n + 1) - n)[2:])[
+            n - 1 - a * (k := len(s)) + ((1 << (k << 2)) - 1) // 15
+        ],
+        16,
+    )
+
+
+def A393342(n):
+    p = [prime(i) for i in range(1, n + 1)]
+    r = [q % n for q in p]
+    while True:
+        if r[: (t := len(r) + 1 >> 1)] == r[: -t - 1 : -1]:
+            return p[0]
+        p = p[1:] + [m := nextprime(p[-1])]
+        r = r[1:] + [m % n]
+
+
+def A030190(n):
+    if n <= 1:
+        return n
+
+    def g(x):
+        return x + (m := x.bit_length()) * (x + 1) - ((1 << m - 1) - 1 << 1)
+
+    def f(x):
+        return n + 1 + bsearch(g, x)
+
+    return int(
+        (s := bin(a := bisection(f, n + 1, n + 1) - n)[2:])[
+            n - 1 - a * (k := len(s)) + ((1 << k) - 1)
+        ]
+    )
+
+
+def A076478(n):
+    def g(x):
+        return x + (x - 1 << x + 1) + 2
+
+    def f(x):
+        return n + 1 + bsearch(g, x)
+
+    a = bisection(f, n + 1, n + 1) - n
+    q, r = divmod(n - (a - 2 << a) - 2, a)
+    return int(format(q, "0" + str(a) + "b")[r])
+
+
+def A033630(n):
+    ds = divisors(n) + [n + 1]
+
+    @lru_cache(maxsize=None)
+    def f(m, k):
+        return int(not m) if ds[k] > m else f(m, k + 1) + f(m - ds[k], k + 1)
+
+    return f(n, 0)
+
+
+def A065205(n):
+    ds = divisors(n) + [n + 1]
+
+    @lru_cache(maxsize=None)
+    def f(m, k):
+        return int(not m) if ds[k] > m else f(m, k + 1) + f(m - ds[k], k + 1)
+
+    return f(n, 0) - 1
+
+
+def A005835_gen(startvalue=1):  # generator of terms >= startvalue
+    return filter(A065205, count(max(startvalue, 1)))
+
+
+def A136447_gen(startvalue=1):  # generator of terms >= startvalue
+    return filter(lambda n: not A065205(n), count(max(startvalue, 1)))
+
+
+def A392652_gen(startvalue=1):  # generator of terms >= startvalue
+    return (k << 1 for k in filter(A065205, count(max(startvalue, 1))))
+
+
+def A296354(n):
+    return 2 + ((m := n.bit_length()) - 2 << m) + m * n
+
+
+def A206332(n):
+    return n - 1 + (1 << n.bit_length())
+
+
+def A392106(n):
+    def g(x):
+        return x + (x - 1 << x + 1) + 2
+
+    def f(x):
+        return n + 1 + bsearch(g, x)
+
+    a = bisection(f, n + 1, n + 1) - n
+    q, r = divmod(n - (a - 2 << a) - 2, a)
+    return 1 + int(format(q, "0" + str(a) + "b")[r])
+
+
+def A393924(n):
+    def f(x):
+        c, l = n + 1 + x - squarefreepi(x), 0
+        j = isqrt(x)
+        while j > 1:
+            k2 = integer_nthroot(x // j**2, 3)[0] + 1
+            w = squarefreepi(k2 - 1)
+            c -= j * (w - l)
+            l, j = w, isqrt(x // k2**3)
+        c -= squarefreepi(integer_nthroot(x, 3)[0]) - l
+        return c
+
+    return iterfun(f, n)
+
+
+def A023103(n):
+    m = 10**n
+
+    def g(x):
+        return x + (m := len(str(x))) * (x + 1) - 10 * (10 ** (m - 1) - 1) // 9
+
+    def f(x):
+        return m + 1 + bsearch(g, x)
+
+    return int(
+        (s := str(a := bisection(f, m + 1, m + 1) - m))[
+            m - 1 - a * (k := len(s)) + (10**k - 1) // 9
+        ]
+    )
+
+
+def A033713(n):
+    return (1 + (9 * n - 10) * 10 ** (n - 1)) // 9
+
+
+def A346306(n):
+    return (3 << (n + 1).bit_length() - 1) - 3 - n
+
+
+def A030308(n):
+    if n < 2:
+        return n
+
+    def g(x):
+        return x + (m := x.bit_length()) * (x + 1) - ((1 << m - 1) - 1 << 1)
+
+    def f(x):
+        return n + 1 + bsearch(g, x)
+
+    return int(
+        (s := bin(a := bisection(f, n + 1, n + 1) - n)[2:])[
+            (k := len(s)) * (a + 1) - n - ((1 << k) - 1)
+        ]
+    )
+
+
+def A346304(n):
+    return (1 << n.bit_length() + 1) + (n << 1) - 1
+
+
+def A030341(n):
+    if n < 3:
+        return n
+
+    def g(x):
+        return x + (m := len(gmpy2digits(x, 3))) * (x + 1) - (3**m - 3 >> 1)
+
+    def f(x):
+        return n + 1 + bsearch(g, x)
+
+    return int(
+        (s := gmpy2digits(a := bisection(f, n + 1, n + 1) - n, 3))[
+            (k := len(s)) * (a + 1) - n - (3**k - 1 >> 1)
+        ]
+    )
+
+
+def A031298(n):
+    if n < 10:
+        return n
+
+    def g(x):
+        return x + (m := len(str(x))) * (x + 1) - (10**m - 10) // 9
+
+    def f(x):
+        return n + 1 + bsearch(g, x)
+
+    return int(
+        (s := str(a := bisection(f, n + 1, n + 1) - n))[
+            (k := len(s)) * (a + 1) - n - (10**k - 1) // 9
+        ]
+    )
+
+
+def A262437(n):
+    if n < 16:
+        return n
+
+    def g(x):
+        return (
+            x
+            + (m := x.bit_length() + 3 >> 2) * (x + 1)
+            - ((1 << (m - 1 << 2)) - 1 << 4) // 15
+        )
+
+    def f(x):
+        return n + 1 + bsearch(g, x)
+
+    return int(
+        (s := hex(a := bisection(f, n + 1, n + 1) - n)[2:])[
+            (k := len(s)) * (a + 1) - n - ((1 << (k << 2)) - 1) // 15
+        ],
+        16,
+    )
+
+
+def A122094_gen(startvalue=3):  # generator of terms >= startvalue
+    p = max(nextprime(startvalue - 1), 3)
+    while True:
+        if isprime(n_order(2, p)):
+            yield p
+        p = nextprime(p)
+
+
+def A392845_gen(startvalue=3):  # generator of terms >= startvalue
+    return filter(
+        lambda k: (m := k >> (~k & k - 1).bit_length()) > 1 and isprime(n_order(2, m)),
+        count(max(startvalue, 3)),
+    )
+
+
+def A335431(n):
+    A000043_list = [
+        2,
+        3,
+        5,
+        7,
+        13,
+        17,
+        19,
+        31,
+        61,
+        89,
+        107,
+        127,
+        521,
+        607,
+        1279,
+        2203,
+        2281,
+        3217,
+        4253,
+        4423,
+        9689,
+        9941,
+        11213,
+        19937,
+        21701,
+        23209,
+        44497,
+        86243,
+        110503,
+        132049,
+        216091,
+        756839,
+        859433,
+        1257787,
+        1398269,
+        2976221,
+        3021377,
+        6972593,
+        13466917,
+        20996011,
+        24036583,
+        25964951,
+        30402457,
+        32582657,
+        37156667,
+        42643801,
+        43112609,
+        57885161,
+        74207281,
+        77232917,
+    ]
+
+    def f(x):
+        q = (x + 1).bit_length() - 1
+        if q <= A000043_list[-1]:
+            return (
+                n
+                + x
+                - sum(
+                    (x // (2**m - 1)).bit_length()
+                    for m in takewhile(lambda m: m < (x + 1).bit_length(), A000043_list)
+                )
+            )
+        else:
+            return (
+                n
+                + x
+                - sum(
+                    ((x // m).bit_length() if isprime(m := 2**i - 1) else 0)
+                    for i in primerange((x + 1).bit_length())
+                )
+            )
+
+    return bisection(f, n, n)
+
+
+def A393797(n):
+    if n == 0:
+        return 4
+    k = isqrt(n << 3) + 1 >> 1
+    t = comb(k + 1, 2) - n
+    if t & 1:
+        k += 1
+        t += k
+        if k & 1 ^ 1:
+            k += 1
+            t += k
+    m, a = t >> 1, (1 << k) - 1
+    if m == 0:
+        return a
+    elif m < k:
+        return a - (1 << m - 1)
+    else:
+        return a - (1 << k - 2) - (1 << m - k)
+
+
+def A073642(n):
+    return sum(i if j == "1" else 0 for i, j in enumerate(bin(n)[:1:-1]))
+
+
+def A392980_gen(startvalue=1):  # generator of terms >= startvalue
+    return filter(
+        lambda n: not (m := n.bit_length() + 1) & 2
+        and (sum(i if j == "1" else 0 for i, j in enumerate(bin(n)[:1:-1], 1)) << 2)
+        == m * (m - 1),
+        count(max(startvalue, 1)),
+    )
+
+
+def A392236_gen():  # generator of terms
+    yield 1
+    for n in count(2):
+        if not (m := n.bit_length() + 1) & 2 and (
+            sum(i if j == "1" else 0 for i, j in enumerate(bin(n)[:1:-1], 1)) << 2
+        ) == m * (m - 1):
+            yield n << 1
+            yield (n << 1) | 1
+
+
+def A167171(n):
+    def f(x):
+        return int(
+            n
+            + x
+            + (t := primepi(s := isqrt(x)))
+            + (t * (t - 1) >> 1)
+            - sum(primepi(x // k) for k in primerange(1, s + 1))
+        ) - primepi(x)
+
+    return bisection(f, n, n)
+
+
+def A392741(n):
+    def g(x, a, b, c, m):
+        yield from (
+            ((d,) for d in enumerate(primerange(b + 1, isqrt(x // c) + 1), a + 1))
+            if m == 2
+            else (
+                ((a2, b2),) + d
+                for a2, b2 in enumerate(
+                    primerange(b + 1, integer_nthroot(x // c, m)[0] + 1), a + 1
+                )
+                for d in g(x, a2, b2, c * b2, m - 1)
+            )
+        )
+
+    def h(x):
+        return sum(
+            sum(
+                primepi(x // prod(c[1] for c in a)) - a[-1][0] for a in g(x, 0, 1, 1, i)
+            )
+            for i in range(3, x.bit_length())
+        )
+
+    def f(x):
+        return int(
+            n + x - sum(h(integer_nthroot(x, i)[0]) for i in range(2, x.bit_length()))
+        )
+
+    return bisection(f, n, n)
+
+
+def A393164(n):
+    def f(x):
+        return (
+            n
+            + x
+            - sum((x // 5**i).bit_length() for i in range(integer_log(x, 5)[0] + 1))
+        )
+
+    return gcd(m := bisection(f, n, n), bisection(lambda x: f(x) + 1, m, m))
+
+
+def A186711(n):
+    def f(x):
+        return (
+            n
+            + x
+            - sum((x // 3**i).bit_length() for i in range(integer_log(x, 3)[0] + 1))
+        )
+
+    return gcd(m := bisection(f, n, n), bisection(lambda x: f(x) + 1, m, m))
+
+
+def A112752(n):
+    def f(x):
+        return (
+            n
+            + x
+            - sum(
+                integer_log(x // 5**i, 3)[0] + 1
+                for i in range(integer_log(x, 5)[0] + 1)
+            )
+        )
+
+    return gcd(m := bisection(f, n, n), bisection(lambda x: f(x) + 1, m, m))
+
+
+def A112757(n):
+    def f(x):
+        c = n + x
+        i, i5 = 0, 1
+        while i5 <= x:
+            j, j3 = 0, 1
+            y = x // i5
+            z = y
+            while j3 <= y:
+                c -= z.bit_length()
+                j += 1
+                j3 *= 3
+                z //= 3
+            i += 1
+            i5 *= 5
+        return c
+
+    return gcd(m := bisection(f, n, n), bisection(lambda x: f(x) + 1, m, m))
+
+
+def A061987(n):
+    def f(x):
+        return (
+            n
+            + x
+            - sum((x // 3**i).bit_length() for i in range(integer_log(x, 3)[0] + 1))
+        )
+
+    return -(m := bisection(f, n, n)) + bisection(lambda x: f(x) + 1, m, m) if n else 1
+
+
+def A186712(n):
+    def g(x):
+        return sum((x // 3**i).bit_length() for i in range(integer_log(x, 3)[0] + 1))
+
+    m = bisection(lambda x: n + x - g(x), n, n)
+    for k in count(1):
+        a = bisection(lambda x: k + x - g(x), k, k)
+        b = g(a * m)
+        if gcd(a * m, bisection(lambda x: b + 1 + x - g(x), a * m, a * m)) == m:
+            return b
+
+
+def A393576(n):
+    def f(x):
+        c = n + x
+        for i in range(integer_log(x, 7)[0] + 1):
+            for j in range(integer_log(m := x // 7**i, 5)[0] + 1):
+                for k in range(integer_log(r := m // 5**j, 3)[0] + 1):
+                    c -= (r // 3**k).bit_length()
+        return c
+
+    return gcd(m := bisection(f, n, n), bisection(lambda x: f(x) + 1, m, m))
+
+
+def A258409(n):
+    return gcd(*(d - 1 for d in divisors(n, generator=True))) if n & 1 else 1
+
+
+def A003586(n):
+    def f(x):
+        return (
+            n
+            + x
+            - sum((x // 3**i).bit_length() for i in range(integer_log(x, 3)[0] + 1))
+        )
+
+    return bisection(f, n, n)
+
+
+def A393574_gen():  # generator of terms
+    def f(x):
+        return (
+            x
+            - sum(
+                (x // 3**i).bit_length() - 1 for i in range(1, integer_log(x, 3)[0] + 1)
+            )
+            - sum(
+                (k := x // 5**i).bit_length() + integer_log(k, 3)[0]
+                for i in range(integer_log(x, 5)[0] + 1)
+            )
+        )
+
+    def h(x):
+        c = 0
+        i, i5 = 0, 1
+        while i5 <= x:
+            j, j3 = 0, 1
+            y = x // i5
+            z = y
+            while j3 <= y:
+                c += z.bit_length()
+                j += 1
+                j3 *= 3
+                z //= 3
+            i += 1
+            i5 *= 5
+        return c
+
+    m = 1
+    k = h(m)
+    for n in count(1):
+        m2 = bisection(lambda x: f(x) + n, m, m)
+        k2 = h(m2)
+        if k2 == k + 1 and gcd(m, m2) == 1:
+            yield m
+        m, k = m2, k2
+
+
+def A393575_gen():  # generator of terms
+    def f(x):
+        return (
+            x
+            - sum(
+                (x // 3**i).bit_length() - 1 for i in range(1, integer_log(x, 3)[0] + 1)
+            )
+            - sum(
+                (k := x // 5**i).bit_length() + integer_log(k, 3)[0]
+                for i in range(integer_log(x, 5)[0] + 1)
+            )
+        )
+
+    def h(x):
+        c = 0
+        i, i5 = 0, 1
+        while i5 <= x:
+            j, j3 = 0, 1
+            y = x // i5
+            z = y
+            while j3 <= y:
+                c += z.bit_length()
+                j += 1
+                j3 *= 3
+                z //= 3
+            i += 1
+            i5 *= 5
+        return c
+
+    m = 1
+    k = h(m)
+    for n in count(1):
+        m2 = bisection(lambda x: f(x) + n, m, m)
+        k2 = h(m2)
+        if k2 == k + 1 and gcd(m, m2) == 1:
+            yield m2
+        m, k = m2, k2
+
+
+def A390314_gen():  # generator of terms
+    c, aset, a, b, s = set(), {1}, 1, 2, 1
+    yield 1
+    while True:
+        for n in count(b, 2):
+            if n not in aset:
+                m = s + n
+                if gcd(m, n) == 1 and all(m % p for p in c):
+                    a = n
+                    yield a
+                    aset.add(a)
+                    s += a
+                    c |= set(primefactors(a))
+                    while b in aset:
+                        b += 2
+                    break
+
+
+def A393439(n):
+    c, aset, a, b, s, p = set(), {1}, 1, 2, 1, n << 1
+    for a in count(2):
+        for k in count(b, 2):
+            if k not in aset:
+                m = s + k
+                if gcd(m, k) == 1 and all(m % p for p in c):
+                    if k == p:
+                        return a
+                    a = k
+                    aset.add(a)
+                    s += a
+                    c |= set(primefactors(a))
+                    while b in aset:
+                        b += 2
+                    break
+
+
+def A393440(n):
+    c, aset, a, b, s, p = set(), {1}, 1, 2, 1, prime(n) << 1
+    for a in count(2):
+        for k in count(b, 2):
+            if k not in aset:
+                m = s + k
+                if gcd(m, k) == 1 and all(m % p for p in c):
+                    if k == p:
+                        return a
+                    a = k
+                    aset.add(a)
+                    s += a
+                    c |= set(primefactors(a))
+                    while b in aset:
+                        b += 2
+                    break
+
+
+def A381466_gen():  # generator of terms
+    a = 4
+    for n in count(1):
+        yield a
+        a = a + n if (g := gcd(a, n)) == 1 else n // g
+
+
+def A393811_gen(startvalue=1):  # generator of terms >= startvalue
+    for k in count(max(startvalue, 1)):
+        if (
+            isprime(m := 10 * k * (5 * k + 1) + 1)
+            and isprime(m + 40 * k + 12)
+            and isprime(m + 80 * k + 40)
+        ):
+            yield k
+
+
+def A086411(n):
+    if n == 1:
+        return 1
+
+    def f(x):
+        return (
+            n
+            + x
+            - sum((x // 3**i).bit_length() for i in range(integer_log(x, 3)[0] + 1))
+        )
+
+    return 2 | bool(((m := bisection(f, n, n)) & -m) ^ m)
+
+
+def A086410(n):
+    if n == 1:
+        return 1
+
+    def f(x):
+        return (
+            n
+            + x
+            - sum((x // 3**i).bit_length() for i in range(integer_log(x, 3)[0] + 1))
+        )
+
+    return 2 | (bisection(f, n, n) & 1)
+
+
+def A007694(n):
+    def f(x):
+        return (
+            n
+            + x
+            + (m := integer_log(x, 3)[0])
+            - sum((x // 3**i).bit_length() for i in range(m + 1))
+        )
+
+    return bisection(f, n, n)
+
+
+def A049237(n):
+    if n == 1:
+        return 1
+
+    def f(x):
+        return (
+            n
+            + x
+            + (m := integer_log(x, 3)[0])
+            - sum((x // 3**i).bit_length() for i in range(m + 1))
+        )
+
+    return 2 | bool(((m := bisection(f, n, n)) & -m) ^ m)
+
+
+def A206807(n):
+    return (3**n).bit_length() + n - 1
+
+
+def A206805(n):
+    return integer_log(1 << n, 3)[0] + n
+
+
+def A387923(n):
+    def f(x):
+        c, l = n + x, 0
+        j = isqrt(x)
+        while j > 1:
+            k2 = integer_nthroot(x // j**2, 3)[0] + 1
+            w = squarefreepi(k2 - 1)
+            c -= j * (w - l)
+            l, j = w, isqrt(x // k2**3)
+        c -= squarefreepi(integer_nthroot(x, 3)[0]) - l
+        return c
+
+    return gcd(m := bisection(f, n, n), bisection(lambda x: f(x) + 1, m, m))
+
+
+def A112756(n):
+    if n == 1:
+        return 1
+
+    def f(x):
+        return (
+            n
+            + x
+            - sum(
+                integer_log(x // 5**i, 3)[0] + 1
+                for i in range(integer_log(x, 5)[0] + 1)
+            )
+        )
+
+    return 3 + ((not bisection(f, n, n) % 5) << 1)
+
+
+def A112764(n):
+    if n == 1:
+        return 1
+
+    def f(x):
+        c = n + x
+        i, i5 = 0, 1
+        while i5 <= x:
+            j, j3 = 0, 1
+            y = x // i5
+            z = y
+            while j3 <= y:
+                c -= z.bit_length()
+                j += 1
+                j3 *= 3
+                z //= 3
+            i += 1
+            i5 *= 5
+        return c
+
+    return 5 if not (m := bisection(f, n, n)) % 5 else 3 if (m & -m) ^ m else 2
+
+
+def A112763(n):
+    if n == 1:
+        return 1
+
+    def f(x):
+        c = n + x
+        i, i5 = 0, 1
+        while i5 <= x:
+            j, j3 = 0, 1
+            y = x // i5
+            z = y
+            while j3 <= y:
+                c -= z.bit_length()
+                j += 1
+                j3 *= 3
+                z //= 3
+            i += 1
+            i5 *= 5
+        return c
+
+    return (
+        2
+        if not (m := bisection(f, n, n)) & 1
+        else 5 if 5 ** integer_log(m, 5)[0] == m else 3
+    )
+
+
+def A206812(n):
+    return n + integer_log(m := 1 << n, 3)[0] + integer_log(m, 5)[0]
+
+
+def A206813(n):
+    return n + integer_log(m := 3**n, 5)[0] + m.bit_length() - 1
+
+
+def A206814(n):
+    return n - 1 + integer_log(m := 5**n, 3)[0] + m.bit_length()
+
+
+def A188427(n):
+    c, m = 0, 5**n
+    i, i5 = 0, 1
+    while i5 <= m:
+        j, j3 = 0, 1
+        y = m // i5
+        z = y
+        while j3 <= y:
+            c += z.bit_length()
+            j += 1
+            j3 *= 3
+            z //= 3
+        i += 1
+        i5 *= 5
+    return c
+
+
+def A188426(n):
+    c, m = 0, 3**n
+    i, i5 = 0, 1
+    while i5 <= m:
+        j, j3 = 0, 1
+        y = m // i5
+        z = y
+        while j3 <= y:
+            c += z.bit_length()
+            j += 1
+            j3 *= 3
+            z //= 3
+        i += 1
+        i5 *= 5
+    return c
+
+
+def A188425(n):
+    c, m = 0, 1 << n
+    i, i5 = 0, 1
+    while i5 <= m:
+        j, j3 = 0, 1
+        y = m // i5
+        z = y
+        while j3 <= y:
+            c += z.bit_length()
+            j += 1
+            j3 *= 3
+            z //= 3
+        i += 1
+        i5 *= 5
+    return c
+
+
+def A112755(n):
+    if n == 1:
+        return 1
+
+    def f(x):
+        return (
+            n
+            + x
+            - sum(
+                integer_log(x // 5**i, 3)[0] + 1
+                for i in range(integer_log(x, 5)[0] + 1)
+            )
+        )
+
+    return 3 + (bool(bisection(f, n, n) % 3) << 1)
+
+
+def A086286(n):
+    if n == 1:
+        return 1
+
+    def f(x):
+        c = n + x
+        for i in range(integer_log(x, 7)[0] + 1):
+            for j in range(integer_log(m := x // 7**i, 5)[0] + 1):
+                for k in range(integer_log(r := m // 5**j, 3)[0] + 1):
+                    c -= (r // 3**k).bit_length()
+        return c
+
+    m = bisection(f, n, n)
+    if m & 1 ^ 1:
+        return 2
+    elif not m % 3:
+        return 3
+    elif not m % 5:
+        return 5
+    else:
+        return 7
+
+
+def A086287(n):
+    if n == 1:
+        return 1
+
+    def f(x):
+        c = n + x
+        for i in range(integer_log(x, 7)[0] + 1):
+            for j in range(integer_log(m := x // 7**i, 5)[0] + 1):
+                for k in range(integer_log(r := m // 5**j, 3)[0] + 1):
+                    c -= (r // 3**k).bit_length()
+        return c
+
+    m = bisection(f, n, n)
+    if not (m & -m) ^ m:
+        return 2
+    elif not m % 7:
+        return 7
+    elif not m % 5:
+        return 5
+    else:
+        return 3
+
+
+def A080785(n):
+    if n == 1:
+        return 1
+
+    def g(x, m):
+        return (
+            x.bit_length()
+            if m == 2
+            else sum(
+                g(x // (m**i), prevprime(m)) for i in range(integer_log(x, m)[0] + 1)
+            )
+        )
+
+    k = g(n - 1, p := min(primefactors(n))) + 1
+
+    def f(x):
+        return k + x - g(x, p)
+
+    return bisection(f, k, k)
+
+
+def A333536(n):
+    if n < 5:
+        return int(not n == 1)
+
+    def g(x, m):
+        return (
+            x.bit_length()
+            if m == 2
+            else sum(
+                g(x // (m**i), prevprime(m)) for i in range(integer_log(x, m)[0] + 1)
+            )
+        )
+
+    return g(n, prevprime(isqrt(n - 1) + 1))
+
+
+def A391443(n):
+    @lru_cache(maxsize=None)
+    def squarefreepi(n):
+        return int(sum(mobius(k) * (n // k**2) for k in range(1, isqrt(n) + 1)))
+
+    @lru_cache(maxsize=None)
+    def g(x):
+        c, l = 0, 0
+        j = isqrt(x)
+        while j > 1:
+            k2 = integer_nthroot(x // j**2, 3)[0] + 1
+            w = squarefreepi(k2 - 1)
+            c += j * (w - l)
+            l, j = w, isqrt(x // k2**3)
+        c += squarefreepi(integer_nthroot(x, 3)[0]) - l
+        return c
+
+    def f(x):
+        d, a, b = n + x, g(1), g(2)
+        for k in range(1, x + 1):
+            c = g((k + 2) ** 2)
+            if c == a + 2:
+                d -= 1
+            a, b = b, c
+        return d
+
+    return bisection(f, n, n)
+
+
+def A336177(n):
+    @lru_cache(maxsize=None)
+    def squarefreepi(n):
+        return int(sum(mobius(k) * (n // k**2) for k in range(1, isqrt(n) + 1)))
+
+    @lru_cache(maxsize=None)
+    def g(x):
+        c, l = 0, 0
+        j = isqrt(x)
+        while j > 1:
+            k2 = integer_nthroot(x // j**2, 3)[0] + 1
+            w = squarefreepi(k2 - 1)
+            c += j * (w - l)
+            l, j = w, isqrt(x // k2**3)
+        c += squarefreepi(integer_nthroot(x, 3)[0]) - l
+        return c
+
+    def f(x):
+        c, a = n + x, 1
+        for k in range(1, x + 1):
+            b = g((k + 1) ** 2)
+            if b == a + 3:
+                c -= 1
+            a = b
+        return c
+
+    return bisection(f, n, n)
+
+
+def A390808(n):
+    f = factorint(n)
+    k = n * prod(
+        (lambda x: x[0] + int((x[1] << 1) >= p + 1))(divmod(p ** (e + 1), p + 1))
+        for p, e in f.items()
+    )
+    if any(e & 1 for e in f.values()):
+        return k >> 1
+    else:
+        m = prod((p ** (e + 1) + 1) // (p + 1) for p, e in f.items())
+        return k * (m + 1) // (m << 1)
+
+
+def A390802(n):
+    return n * (n + 1) >> 1 if n & 1 else n**2 >> 2
+
+
+def A390804(n):
+    return totient(n << 1) * n >> 1 if (n & -n) ^ n else n * (n + 1) >> 1
+
+
+def A080685(n):
+    ptuple = (2, 3, 5, 7, 11, 13, 17)
+
+    def g(x, m):
+        return (
+            sum(
+                g(x // (ptuple[m] ** i), m - 1)
+                for i in range(integer_log(x, ptuple[m])[0] + 1)
+            )
+            if m
+            else x.bit_length()
+        )
+
+    return g(n, 6)
+
+
+def A071523(n):
+    ptuple = (2, 3, 5, 7, 11)
+
+    def g(x, m):
+        return (
+            sum(
+                g(x // (ptuple[m] ** i), m - 1)
+                for i in range(integer_log(x, ptuple[m])[0] + 1)
+            )
+            if m
+            else x.bit_length()
+        )
+
+    return g(n, 4)
+
+
+def A086247(n):
+    ptuple = (2, 3, 5, 7)
+
+    def g(x, m):
+        return (
+            sum(
+                g(x // (ptuple[m] ** i), m - 1)
+                for i in range(integer_log(x, ptuple[m])[0] + 1)
+            )
+            if m
+            else x.bit_length()
+        )
+
+    return -(m := bisection(lambda x: n + x - g(x, 3), n, n)) + bisection(
+        lambda x: n + 1 + x - g(x, 3), m, m
+    )
+
+
+def A335331(n):
+    ptuple = (2, 3, 5, 7)
+
+    def g(x, m):
+        return (
+            sum(
+                g(x // (ptuple[m] ** i), m - 1)
+                for i in range(integer_log(x, ptuple[m])[0] + 1)
+            )
+            if m
+            else x.bit_length()
+        )
+
+    return prime(bisection(lambda x: n + x - g(x, 3), n, n))
+
+
+def A106600(n):
+    ptuple = (2, 3, 5, 7)
+
+    def g(x, m):
+        return (
+            sum(
+                g(x // (ptuple[m] ** i), m - 1)
+                for i in range(integer_log(x, ptuple[m])[0] + 1)
+            )
+            if m
+            else x.bit_length()
+        )
+
+    return g(10**n, 3)
+
+
+def A108277(n):
+    ptuple = (2, 3, 5, 7, 11, 13, 17, 19, 23)
+
+    def g(x, m):
+        return (
+            sum(
+                g(x // (ptuple[m] ** i), m - 1)
+                for i in range(integer_log(x, ptuple[m])[0] + 1)
+            )
+            if m
+            else x.bit_length()
+        )
+
+    return g(10**n, 8)
+
+
+def A108276(n):
+    ptuple = (2, 3, 5, 7, 11, 13, 17, 19)
+
+    def g(x, m):
+        return (
+            sum(
+                g(x // (ptuple[m] ** i), m - 1)
+                for i in range(integer_log(x, ptuple[m])[0] + 1)
+            )
+            if m
+            else x.bit_length()
+        )
+
+    return g(10**n, 7)
+
+
+def A108275(n):
+    ptuple = (2, 3, 5, 7, 11, 13, 17)
+
+    def g(x, m):
+        return (
+            sum(
+                g(x // (ptuple[m] ** i), m - 1)
+                for i in range(integer_log(x, ptuple[m])[0] + 1)
+            )
+            if m
+            else x.bit_length()
+        )
+
+    return g(10**n, 6)
+
+
+def A106629(n):
+    ptuple = (2, 3, 5, 7, 11, 13)
+
+    def g(x, m):
+        return (
+            sum(
+                g(x // (ptuple[m] ** i), m - 1)
+                for i in range(integer_log(x, ptuple[m])[0] + 1)
+            )
+            if m
+            else x.bit_length()
+        )
+
+    return g(10**n, 5)
+
+
+def A253635(n):
+    def g(x, m):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1)
+                for i in range(integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else x.bit_length()
+        )
+
+    a = (m := isqrt(k := n << 1)) + (k > m * (m + 1))
+    return g(10 ** (x := n - comb(a, 2) - 1), a - x)
+
+
+def A253572(n):
+    def g(x, m):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1)
+                for i in range(integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else x.bit_length()
+        )
+
+    a = (m := isqrt(k := n << 1)) + (k > m * (m + 1))
+    b = n - comb(a, 2)
+    return bisection(lambda x: b + x - g(x, a - b + 1), b, b)
+
+
+def A085132(n):
+    def f(x):
+        c = n + x
+        for i in range(integer_log(x, 7)[0] + 1):
+            for j in range(integer_log(m := x // 7**i, 5)[0] + 1):
+                for k in range(integer_log(r := m // 5**j, 3)[0] + 1):
+                    c -= (r // 3**k).bit_length()
+        return c
+
+    return 9 * bisection(f, n, n)
+
+
+def A053526(n):
+    return n * (n * (n * (n * (n * (n - 3) - 3) + 3) + 26) - 24) // 48
+
+
+def A050534(n):
+    return n * (n * (n * (n - 2) - 1) + 2) >> 3
+
+
+def A392409_T(n, k):
+    n2 = 1 << n
+
+    def f(x):
+        return n2 + x - almostprimepi(x, k)
+
+    return squarefreealmostprimepi(bisection(f, n2, n2), k)
+
+
+def A392409(n):
+    a = (m := isqrt(k := n + 1 << 1)) + (k > m * (m + 1))
+    x = comb(a + 1, 2) - n - 1
+    return A392409_T(x, a - x)
+
+
+def A147571(n):
+    def f(x):
+        c = n + x
+        for i in range(1, integer_log(x, 7)[0] + 1):
+            for j in range(1, integer_log(m := x // 7**i, 5)[0] + 1):
+                for k in range(1, integer_log(r := m // 5**j, 3)[0] + 1):
+                    c -= (r // 3**k).bit_length() - 1
+        return c
+
+    return bisection(f, n, n)
+
+
+def A147573(n):
+    ptuple = (2, 3, 5, 7, 11, 13)
+
+    def g(x, m):
+        return (
+            sum(
+                g(x // (ptuple[m] ** i), m - 1)
+                for i in range(1, integer_log(x, ptuple[m])[0] + 1)
+            )
+            if m
+            else x.bit_length() - 1
+        )
+
+    return bisection(lambda x: n + x - g(x, 5), 30030 * n, 30030 * n)
+
+
+def A147574(n):
+    ptuple = (2, 3, 5, 7, 11, 13, 17)
+
+    def g(x, m):
+        return (
+            sum(
+                g(x // (ptuple[m] ** i), m - 1)
+                for i in range(1, integer_log(x, ptuple[m])[0] + 1)
+            )
+            if m
+            else x.bit_length() - 1
+        )
+
+    return bisection(lambda x: n + x - g(x, 6), 510510 * n, 510510 * n)
+
+
+def A147575(n):
+    ptuple = (2, 3, 5, 7, 11, 13, 17, 19)
+
+    def g(x, m):
+        return (
+            sum(
+                g(x // (ptuple[m] ** i), m - 1)
+                for i in range(1, integer_log(x, ptuple[m])[0] + 1)
+            )
+            if m
+            else x.bit_length() - 1
+        )
+
+    return bisection(lambda x: n + x - g(x, 7), 9699690 * n, 9699690 * n)
+
+
+def A147580(n):
+    ptuple = (3, 5, 7, 11, 13, 17, 19)
+
+    def g(x, m):
+        return (
+            sum(
+                g(x // (ptuple[m] ** i), m - 1)
+                for i in range(1, integer_log(x, ptuple[m])[0] + 1)
+            )
+            if m
+            else integer_log(x, 3)[0]
+        )
+
+    return bisection(lambda x: n + x - g(x, 6), 4849845 * n, 4849845 * n)
+
+
+def A147579(n):
+    ptuple = (3, 5, 7, 11, 13, 17)
+
+    def g(x, m):
+        return (
+            sum(
+                g(x // (ptuple[m] ** i), m - 1)
+                for i in range(1, integer_log(x, ptuple[m])[0] + 1)
+            )
+            if m
+            else integer_log(x, 3)[0]
+        )
+
+    return bisection(lambda x: n + x - g(x, 5), 255255 * n, 255255 * n)
+
+
+def A147578(n):
+    ptuple = (3, 5, 7, 11, 13)
+
+    def g(x, m):
+        return (
+            sum(
+                g(x // (ptuple[m] ** i), m - 1)
+                for i in range(1, integer_log(x, ptuple[m])[0] + 1)
+            )
+            if m
+            else integer_log(x, 3)[0]
+        )
+
+    return bisection(lambda x: n + x - g(x, 4), 15015 * n, 15015 * n)
+
+
+def A147576(n):
+    ptuple = (3, 5, 7)
+
+    def g(x, m):
+        return (
+            sum(
+                g(x // (ptuple[m] ** i), m - 1)
+                for i in range(1, integer_log(x, ptuple[m])[0] + 1)
+            )
+            if m
+            else integer_log(x, 3)[0]
+        )
+
+    return bisection(lambda x: n + x - g(x, 2), 105 * n, 105 * n)
+
+
+def A055932(n):
+    @lru_cache(maxsize=None)
+    def g(x, m):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1)
+                for i in range(1, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else x.bit_length() - 1
+        )
+
+    def f(x):
+        c = n - 1 + x
+        for k in count(1):
+            if primorial(k) > x:
+                break
+            c -= g(x, k)
+        return c
+
+    return bisection(f, n, n)
+
+
+def A080259(n):
+    @lru_cache(maxsize=None)
+    def g(x, m):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1)
+                for i in range(1, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else x.bit_length() - 1
+        )
+
+    def f(x):
+        c = n + 1
+        for k in count(1):
+            if primorial(k) > x:
+                break
+            c += g(x, k)
+        return c
+
+    return iterfun(f, n)
+
+
+def A080404(n):
+    @lru_cache(maxsize=None)
+    def g(x, m):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1)
+                for i in range(1, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else x.bit_length() - 1
+        )
+
+    def f(x):
+        c = n + x
+        for k in count(1):
+            if primorial(k) > x:
+                break
+            c -= g(x, k)
+        return c
+
+    return prod(primefactors(bisection(f, n + 1, n + 1)))
+
+
+def A376690(n):
+    @lru_cache(maxsize=None)
+    def g(x, m):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1)
+                for i in range(1, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else x.bit_length() - 1
+        )
+
+    def f(x):
+        c = n - 1 + x
+        for k in count(1):
+            if primorial(k) > x:
+                break
+            c -= g(x, k)
+        return c
+
+    return -(m := bisection(f, n, n)) + bisection(lambda x: f(x) + 1, m, m)
+
+
+def A377028(n):
+    @lru_cache(maxsize=None)
+    def g(x, m):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1)
+                for i in range(1, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else x.bit_length() - 1
+        )
+
+    c = 1
+    for k in count(1):
+        if primorial(k) > n:
+            break
+        c += g(n, k)
+    return c
+
+
+def A331938(n):
+    if n == 0:
+        return 1
+
+    @lru_cache(maxsize=None)
+    def g(x, m):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1)
+                for i in range(1, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else x.bit_length() - 1
+        )
+
+    p = primorial(n)
+    return 1 + sum(g(p, k) for k in range(1, n + 1))
+
+
+def A339886(n):
+    @lru_cache(maxsize=None)
+    def g(x, m):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1)
+                for i in range(1, integer_log(x, prime(m))[0] + 1)
+            )
+            if m > 2
+            else integer_log(x, 3)[0]
+        )
+
+    def f(x):
+        c = n - 1 + x
+        for k in count(2):
+            if primorial(k) > (x << 1):
+                break
+            c -= g(x, k)
+        return c
+
+    return bisection(f, n, n)
+
+
+def A394371(n):
+    return comb(n << 4, m := 6 * n) * comb(m, n << 1)
+
+
+def A085630(n):
+    ptuple = (2, 3, 5, 7)
+
+    def g(x, m):
+        return (
+            sum(
+                g(x // (ptuple[m] ** i), m - 1)
+                for i in range(integer_log(x, ptuple[m])[0] + 1)
+            )
+            if m
+            else x.bit_length()
+        )
+
+    return -g(m := 10 ** (n - 1), 3) + g(10 * m, 3) if n else 0
+
+
+def A394398(n):
+    return (
+        sum(1 for d in sqrt_mod(1, n, all_roots=True) if not (n**2 - 1) % d)
+        if n > 1
+        else 0
+    )
+
+
+def A129296(n):
+    f = Counter(factorint(n - 1)) + Counter(factorint(n + 1))
+    return prod(a + 1 for a in f.values()) >> 1 if n > 1 else 1
+
+
+def A247257(n):
+    return prod(
+        gcd(8, p - 1) if p & 1 else min(1 << e - 1, 16) for p, e in factorint(n).items()
+    )
+
+
+def A129294(n):
+    return (
+        sum(1 for d in takewhile(lambda x: x <= n, divisors(n**3 - 1))) if n > 1 else 1
+    )
+
+
+def A129292(n):
+    return (
+        sum(1 for d in takewhile(lambda x: x <= n, divisors(n**4 - 1))) if n > 1 else 1
+    )
+
+
+def A000933(n):
+    return (lambda x: x[0] + bool(x[1]))(divmod((n - 3) * (n - 4), 12)) if n > 2 else 0
+
+
+def A007997(n):
+    return (lambda x: x[0] + bool(x[1]))(divmod((n - 3) * (n - 4), 6))
+
+
+def A140229(n):
+    return (n + 1) * (3 * n - 4) >> 1 if n > 2 else 3 * n - 2
+
+
+def A124830(n):
+    @lru_cache(maxsize=None)
+    def g(x, m):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1)
+                for i in range(1, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else x.bit_length() - 1
+        )
+
+    def f(x):
+        c = n - 1 + x
+        for k in count(1):
+            if primorial(k) > x:
+                break
+            c -= g(x, k)
+        return c
+
+    return primenu(bisection(f, n, n))
+
+
+def A386527_gen():  # generator of terms
+    def is_squarefree(n):
+        return max(factorint(n).values(), default=1) <= 1
+
+    h, hset = [1], {1}
+    while True:
+        m = heappop(h)
+        if not (is_squarefree(m - 1) or is_squarefree(m + 1)):
+            yield m
+        ps = primefactors(m)
+        ps.append(nextprime(max(ps, default=1)))
+        for p in ps:
+            mp = m * p
+            if mp not in hset:
+                heappush(h, mp)
+                hset.add(mp)
+
+
+def A385934_gen():  # generator of terms
+    def is_squarefree(n):
+        return max(factorint(n).values(), default=1) <= 1
+
+    h, hset = [1], {1}
+    while True:
+        m = heappop(h)
+        if isprime(m + 1):
+            yield m + 1
+        ps = primefactors(m)
+        ps.append(nextprime(max(ps, default=1)))
+        for p in ps:
+            mp = m * p
+            if mp not in hset:
+                heappush(h, mp)
+                hset.add(mp)
+
+
+def A385935_gen():  # generator of terms
+    def is_squarefree(n):
+        return max(factorint(n).values(), default=1) <= 1
+
+    h, hset = [1], {1}
+    while True:
+        m = heappop(h)
+        if isprime(m - 1):
+            yield m - 1
+        ps = primefactors(m)
+        ps.append(nextprime(max(ps, default=1)))
+        for p in ps:
+            mp = m * p
+            if mp not in hset:
+                heappush(h, mp)
+                hset.add(mp)
+
+
+def A344096(n):
+    if n == 1:
+        return 1
+
+    @lru_cache(maxsize=None)
+    def g(x, m):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1)
+                for i in range(1, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else x.bit_length() - 1
+        )
+
+    def f(x):
+        c = n - 1 + x
+        for k in count(1):
+            if primorial(k) > x:
+                break
+            c -= g(x, k)
+        return c
+
+    return g(a := bisection(f, n, n), primenu(a))
+
+
+def A356232_gen():  # generator of terms
+    h, hset = [2], {2}
+    yield 1
+    while True:
+        yield (m := heappop(h))
+        ps = primefactors(m)
+        ps.append(nextprime(max(ps), 2))
+        for p in ps:
+            mp = m * p
+            if mp not in hset:
+                heappush(h, mp)
+                hset.add(mp)
+
+
+def A356232(n):
+    @lru_cache(maxsize=None)
+    def g(x, m):
+        return (
+            sum(
+                g(x // (prime((m << 1) + 1) ** i), m - 1)
+                for i in range(1, integer_log(x, prime((m << 1) + 1))[0] + 1)
+            )
+            if m
+            else x.bit_length() - 1
+        )
+
+    def f(x):
+        c, p = n - 1 + x, 1
+        for k in count(0):
+            p *= prime((k << 1) + 1)
+            if p > x:
+                break
+            c -= g(x, k)
+        return c
+
+    return bisection(f, n, n)
+
+
+def A124831(n):
+    @lru_cache(maxsize=None)
+    def g(x, m):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1)
+                for i in range(1, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else x.bit_length() - 1
+        )
+
+    def f(x):
+        c = n - 1 + x
+        for k in count(1):
+            if primorial(k) > x:
+                break
+            c -= g(x, k)
+        return c
+
+    return primeomega(bisection(f, n, n))
+
+
+def A363814(n):
+    @lru_cache(maxsize=None)
+    def g(x, m):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1)
+                for i in range(1, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else x.bit_length() - 1
+        )
+
+    def f(x):
+        c = n - 3 + x + x.bit_length()
+        for k in count(1):
+            if primorial(k) > x:
+                c += k
+                break
+            c -= g(x, k)
+        return c
+
+    return bisection(f, n + 1, n + 1)
+
+
+def A025487(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    def f(x):
+        c = n - 1 + x
+        for k in count(1):
+            if primorial(k) > x:
+                break
+            c -= g(x, k, 1)
+        return c
+
+    return bisection(f, n, n)
+
+
+def A025487_gen():  # generator of terms
+    h, hset = [1], {1}
+    while True:
+        yield (m := heappop(h))
+        ps = factorint(m)
+        for p in ps:
+            if p == 2 or ps[prevprime(p)] > ps[p]:
+                mp = m * p
+                if mp not in hset:
+                    heappush(h, mp)
+                    hset.add(mp)
+        mp = m * nextprime(max(ps.keys(), default=1))
+        if mp not in hset:
+            heappush(h, mp)
+            hset.add(mp)
+
+
+def A331119(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    @lru_cache(maxsize=None)
+    def h(x, m):
+        return (
+            sum(
+                h(x // (prime(m) ** i), m - 1)
+                for i in range(1, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else x.bit_length() - 1
+        )
+
+    def f(x):
+        c = n - 1 + x
+        for k in count(1):
+            if primorial(k) > x:
+                break
+            c -= g(x, k, 1)
+        return c
+
+    m, c = bisection(f, n, n), 1
+    for k in count(1):
+        if primorial(k) > m:
+            break
+        c += h(m, k)
+    return c
+
+
+def A181822(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    def f(x):
+        c = n - 1 + x
+        for k in count(1):
+            if primorial(k) > x:
+                break
+            c -= g(x, k, 1)
+        return c
+
+    return prod(primorial(e) for e in factorint(bisection(f, n, n)).values())
+
+
+def A056808(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    @lru_cache(maxsize=None)
+    def h(x, m):
+        return (
+            sum(
+                h(x // (prime(m) ** i), m - 1)
+                for i in range(1, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else x.bit_length() - 1
+        )
+
+    def f(x):
+        c = n + x
+        for k in count(1):
+            if primorial(k) > x:
+                break
+            c -= h(x, k) - g(x, k, 1)
+        return c
+
+    return bisection(f, n, n)
+
+
+def A098719(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    return 1 + sum(g(primorial(n - 1), k, 1) for k in range(1, n))
+
+
+def A147516(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m > 2
+            else max(0, integer_log(x, 3)[0] + 1 - j)
+        )
+
+    def f(x):
+        c = n - 1 + x
+        for k in count(2):
+            if primorial(k) > (x << 1):
+                break
+            c -= g(x, k, 1)
+        return c
+
+    return bisection(f, n, n)
+
+
+def A147516_gen():  # generator of terms
+    h, hset = [1], {1}
+    while True:
+        yield (m := heappop(h))
+        ps = factorint(m)
+        for p in ps:
+            if p == 3 or ps[prevprime(p)] > ps[p]:
+                mp = m * p
+                if mp not in hset:
+                    heappush(h, mp)
+                    hset.add(mp)
+        mp = m * nextprime(max(ps.keys(), default=2))
+        if mp not in hset:
+            heappush(h, mp)
+            hset.add(mp)
+
+
+def A393258(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    @lru_cache(maxsize=None)
+    def h(x, m, j):
+        return (
+            sum(
+                h(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m > 2
+            else max(0, integer_log(x, 3)[0] + 1 - j)
+        )
+
+    def f(x):
+        c = n - 1 + x
+        for k in count(1):
+            if primorial(k) > x:
+                break
+            c -= g(x, k, 1)
+        return c
+
+    m, c = prod(nextprime(p) ** e for p, e in factorint(bisection(f, n, n)).items()), 1
+    for k in count(2):
+        if primorial(k) > (m << 1):
+            break
+        c += h(m, k, 1)
+    return c
+
+
+def A369361(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    def f(x):
+        c = n + 1
+        for k in count(1):
+            if primorial(k) > x:
+                break
+            c += g(x, k, 1)
+        return c
+
+    return iterfun(f, n)
+
+
+def A344385_gen():  # generator of terms
+    h, hset = [1], {1}
+    while True:
+        m = heappop(h)
+        if isprime(m - 1) or isprime(m + 1):
+            yield m
+        ps = factorint(m)
+        for p in ps:
+            if p == 2 or ps[prevprime(p)] > ps[p]:
+                mp = m * p
+                if mp not in hset:
+                    heappush(h, mp)
+                    hset.add(mp)
+        mp = m * nextprime(max(ps.keys(), default=1))
+        if mp not in hset:
+            heappush(h, mp)
+            hset.add(mp)
+
+
+def A098718(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    c, f = 1, factorial(n)
+    for k in count(1):
+        if primorial(k) > f:
+            break
+        c += g(f, k, 1)
+    return c
+
+
+def A138534(n):
+    return prod(prime(k) ** (n // k) for k in range(1, n + 1))
+
+
+def A346043(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    c, f = 1, prod(prime(k) ** (n // k) for k in range(1, n + 1))
+    for k in count(1):
+        if primorial(k) > f:
+            break
+        c += g(f, k, 1)
+    return c
+
+
+def A363456(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    c, f = 1, prod(prime(k) ** (n - k + 1) for k in range(1, n + 1))
+    for k in count(1):
+        if primorial(k) > f:
+            break
+        c += g(f, k, 1)
+    return c
+
+
+def A363455(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    def f(x):
+        c = n - 1 + x
+        for k in count(1):
+            if primorial(k) > x:
+                break
+            c -= g(x, k, 1)
+        return c
+
+    return len(set(factorint(bisection(f, n, n)).values()))
+
+
+def A087980(n):
+    @lru_cache(maxsize=None)
+    def A006939(n):
+        return prod(prime(k) ** (n - k + 1) for k in range(1, n + 1))
+
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j + 1, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - 1 - j)
+        )
+
+    def f(x):
+        c = n - 1 + x
+        for k in count(1):
+            if A006939(k) > x:
+                break
+            c -= g(x, k, 0)
+        return c
+
+    return bisection(f, n, n)
+
+
+def A087980_gen():  # generator of terms
+    h, hset = [1], {1}
+    while True:
+        yield (m := heappop(h))
+        ps = factorint(m)
+        for p in ps:
+            if p == 2 or ps[prevprime(p)] > ps[p] + 1:
+                mp = m * p
+                if mp not in hset:
+                    heappush(h, mp)
+                    hset.add(mp)
+        if m == 1:
+            heappush(h, 2)
+            hset.add(2)
+        elif ps[a := max(ps.keys())] > 1:
+            mp = m * nextprime(a)
+            if mp not in hset:
+                heappush(h, mp)
+                hset.add(mp)
+
+
+def A133808(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(1, min(j, integer_log(x, prime(m))[0]) + 1)
+            )
+            if m - 1
+            else min(j, x.bit_length() - 1)
+        )
+
+    def f(x):
+        c = n - 1 + x
+        for k in count(1):
+            if primorial(k) > x:
+                break
+            c -= g(x, k, integer_log(x, prime(k))[0])
+        return c
+
+    return bisection(f, n, n)
+
+
+def A133808_gen():  # generator of terms
+    h, hset = [1], {1}
+    while True:
+        yield (m := heappop(h))
+        ps = factorint(m)
+        for p in ps:
+            if p == max(ps) or ps[nextprime(p)] > ps[p]:
+                mp = m * p
+                if mp not in hset:
+                    heappush(h, mp)
+                    hset.add(mp)
+        mp = 2 if m == 1 else m * nextprime(a := max(ps.keys())) ** ps[a]
+        if mp not in hset:
+            heappush(h, mp)
+            hset.add(mp)
+
+
+def A133809(n):
+    @lru_cache(maxsize=None)
+    def A076954(n):
+        return prod(prime(k) ** k for k in range(1, n + 1))
+
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(1, min(j - 1, integer_log(x, prime(m))[0]) + 1)
+            )
+            if m - 1
+            else min(j, x.bit_length()) - 1
+        )
+
+    def f(x):
+        c = n - 1 + x
+        for k in count(1):
+            if A076954(k) > x:
+                break
+            c -= g(x, k, integer_log(x, prime(k))[0] + 1)
+        return c
+
+    return bisection(f, n, n)
+
+
+def A133809_gen():  # generator of terms
+    h, hset = [1], {1}
+    while True:
+        yield (m := heappop(h))
+        ps = factorint(m)
+        for p in ps:
+            if p == max(ps) or ps[nextprime(p)] > ps[p] + 1:
+                mp = m * p
+                if mp not in hset:
+                    heappush(h, mp)
+                    hset.add(mp)
+        mp = 2 if m == 1 else m * nextprime(a := max(ps.keys())) ** (ps[a] + 1)
+        if mp not in hset:
+            heappush(h, mp)
+            hset.add(mp)
+
+
+def A069626(n):
+    return sum(
+        mobius(n // d) << divisor_count(d) - 1 for d in divisors(n, generator=True)
+    )
+
+
+def A076078(n):
+    return sum(
+        mobius(n // d) << divisor_count(d) for d in divisors(n, generator=True)
+    ) - int(n == 1)
+
+
+def A097211(n):
+    if n == 1:
+        return 1
+
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    def f(x):
+        c = n - 1 + x
+        for k in count(1):
+            if primorial(k) > x:
+                break
+            c -= g(x, k, 1)
+        return c
+
+    m = bisection(f, n, n)
+    return sum(mobius(m // d) << divisor_count(d) for d in divisors(m, generator=True))
+
+
+def A108504(n):
+    if n == 1:
+        return 1
+
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    def f(x):
+        c = n - 1 + x
+        for k in count(1):
+            if primorial(k) > x:
+                break
+            c -= g(x, k, 1)
+        return c
+
+    return divisor_count(bisection(f, n, n)) + 1 >> 1
+
+
+def A318366(n):
+    return sum(primeomega(d) * primeomega(n // d) for d in divisors(n, generator=True))
+
+
+def A329894_gen():  # generator of terms
+    h, hset = [1], {1}
+    while True:
+        m = heappop(h)
+        q = nextprime(m)
+        if q - m > 1 and not isprime(q - m):
+            yield m
+        ps = factorint(m)
+        for p in ps:
+            if p == 2 or ps[prevprime(p)] > ps[p]:
+                mp = m * p
+                if mp not in hset:
+                    heappush(h, mp)
+                    hset.add(mp)
+        mp = m * nextprime(max(ps.keys(), default=1))
+        if mp not in hset:
+            heappush(h, mp)
+            hset.add(mp)
+
+
+def A375195_gen():  # generator of terms
+    d, h, hset = 0, [1], {1}
+    for c in count(0):
+        m = heappop(h)
+        e = divisor_count(m)
+        if d == e:
+            yield c
+        ps = factorint(m)
+        for p in ps:
+            if p == 2 or ps[prevprime(p)] > ps[p]:
+                mp = m * p
+                if mp not in hset:
+                    heappush(h, mp)
+                    hset.add(mp)
+        mp = m * nextprime(max(ps.keys(), default=1))
+        if mp not in hset:
+            heappush(h, mp)
+            hset.add(mp)
+        d = e
+
+
+def A386526_gen():  # generator of terms
+    def is_squarefree(n):
+        return max(factorint(n).values(), default=1) <= 1
+
+    h, hset = [1], {1}
+    while True:
+        m = heappop(h)
+        if not (is_squarefree(m - 1) or is_squarefree(m + 1)):
+            yield m
+        ps = factorint(m)
+        for p in ps:
+            if p == 2 or ps[prevprime(p)] > ps[p]:
+                mp = m * p
+                if mp not in hset:
+                    heappush(h, mp)
+                    hset.add(mp)
+        mp = m * nextprime(max(ps.keys(), default=1))
+        if mp not in hset:
+            heappush(h, mp)
+            hset.add(mp)
+
+
+def A099992(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    def f(x):
+        c, p = (n - 1 << 1) + x, 1
+        for k in count(1):
+            p *= prime(k)
+            if p > x:
+                break
+            c -= g(x, k, 1)
+        return c
+
+    return bisection(f, (n << 1) - 1, (n << 1) - 1)
+
+
+def A099993(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    def f(x):
+        c, p = (n << 1) - 1 + x, 1
+        for k in count(1):
+            p *= prime(k)
+            if p > x:
+                break
+            c -= g(x, k, 1)
+        return c
+
+    return bisection(f, n << 1, n << 1)
+
+
+def A307107(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    def f(x):
+        c, p = n - 1 + x, 1
+        for k in count(1):
+            p *= prime(k)
+            if p > x:
+                break
+            c -= g(x, k, 1)
+        return c
+
+    return (m := bisection(f, n, n)) // prod(primefactors(m))
+
+
+def A309891(n):
+    return sum(multiplicity(d, n) for d in divisors(n, generator=True) if d > 1)
+
+
+def A369180(n):
+    return sum(
+        -multiplicity(k, n) if k & 1 else multiplicity(k, n) for k in range(2, n + 1)
+    )
+
+
+def A076954(n):
+    return prod(prime(k) ** k for k in range(1, n + 1))
+
+
+def A076955(n):
+    return prod(k ** prime(k) for k in range(1, n + 1))
+
+
+@lru_cache(maxsize=None)
+def A330575(n):
+    return n + sum(A330575(d) for d in divisors(n, generator=True, proper=True))
+
+
+@lru_cache(maxsize=None)
+def A255242(n):
+    return sum(A255242(d) + d for d in divisors(n, generator=True, proper=True))
+
+
+def A346407(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    def f(x):
+        return int(
+            n
+            + x
+            - 1
+            - sum(primepi(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length()))
+        )
+
+    m = iterfun(f, n)
+    r = prod(p ** integer_log(m, p)[0] for p in primerange(m + 1))
+    return 1 + sum(g(r, k, 1) for k in takewhile(lambda x: primorial(x) <= r, count(1)))
+
+
+@lru_cache(maxsize=None)
+def A191150(n):
+    return (
+        n
+        - (n > 1)
+        + sum(A191150(d) + d for d in divisors(n, generator=True, proper=True))
+    )
+
+
+@lru_cache(maxsize=None)
+def A345139(n):
+    return (
+        A345139(n - 1)
+        + sum(A345139(d) for d in divisors(n, generator=True, proper=True))
+        if n > 1
+        else 1
+    )
+
+
+def A329898(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    def f(x):
+        return 1 + sum(
+            g(x, k, 1) for k in takewhile(lambda y: primorial(y) <= x, count(1))
+        )
+
+    return f(bisection(lambda x: n + x - f(x), n, n) << 1)
+
+
+def A330683(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    def f(x):
+        return 1 + sum(
+            g(x, k, 1) for k in takewhile(lambda y: primorial(y) <= x, count(1))
+        )
+
+    return f(
+        prod(
+            nextprime(p) ** e if p > 2 else 3**e << e
+            for p, e in factorint(bisection(lambda x: n + x - f(x), n, n)).items()
+        )
+    )
+
+
+def A333964(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    def f(x):
+        return n - 1 + x - sum(g(x, k, 1) for k in range(1, 5))
+
+    return bisection(f, n, n)
+
+
+def A333964_gen():  # generator of terms
+    h, hset = [1], {1}
+    while True:
+        yield (m := heappop(h))
+        ps = factorint(m)
+        for p in ps:
+            if p == 2 or ps[prevprime(p)] > ps[p]:
+                mp = m * p
+                if mp not in hset:
+                    heappush(h, mp)
+                    hset.add(mp)
+        if len(ps) < 4:
+            mp = m * nextprime(max(ps.keys(), default=1))
+            if mp not in hset:
+                heappush(h, mp)
+                hset.add(mp)
+
+
+@lru_cache(maxsize=None)
+def A191161(n):
+    return n + sum(A191161(d) + d for d in divisors(n, generator=True, proper=True))
+
+
+@lru_cache(maxsize=None)
+def A192279(n):
+    return sum(A192279(d) + d for d in antidivisors(n, generator=True))
+
+
+@lru_cache(maxsize=None)
+def A174725(n):
+    return sum(A174725(d) for d in divisors(n, generator=True, proper=True)) + mobius(n)
+
+
+@lru_cache(maxsize=None)
+def A174726(n):
+    return (
+        sum(A174726(d) for d in divisors(n, generator=True, proper=True))
+        - mobius(n)
+        + (n == 1)
+    )
+
+
+def A050324(n):
+    return A074206(A025487(n))
+
+
+def A173382(n):
+    return A025523(n) if n else 0
+
+
+@lru_cache(maxsize=None)
+def A345182(n):
+    return (
+        sum(A345182(d) for d in divisors(n, generator=True, proper=True))
+        if n > 2
+        else 2 - n
+    )
+
+
+@lru_cache(maxsize=None)
+def A067824(n):
+    return 1 + sum(A067824(d) for d in divisors(n, generator=True, proper=True))
+
+
+@lru_cache(maxsize=None)
+def A117621(n):
+    return (
+        sum(A117621(d + 1) for d in divisors(n - 1, generator=True, proper=True))
+        if n > 5
+        else 1 - (n == 1)
+    )
+
+
+@lru_cache(maxsize=None)
+def A335283(n):
+    return 1 + sum(
+        A335283(d)
+        for d in divisors(n >> (~n & n - 1).bit_length(), generator=True, proper=True)
+    )
+
+
+def A341881(n):
+    return 5 * (1 - A007426(n) + (A007425(n) - A000005(n) << 1)) + A061200(n)
+
+
+def A391889(n):
+    return comb(7 * n, m := 3 * n) * comb(m, n)
+
+
+def A100778(n):
+    def g(x):
+        c = 1
+        for i in count(1):
+            c *= prime(i)
+            if c > x:
+                return i - 1
+
+    def f(x):
+        return (
+            n
+            - 1
+            + x
+            - sum(g(integer_nthroot(x, k)[0]) for k in range(1, x.bit_length()))
+        )
+
+    return bisection(f, n, n)
+
+
+def A100778_gen():  # generator of terms
+    h, hset = [1], {1}
+    while True:
+        yield (m := heappop(h))
+        ps = factorint(m)
+        if m == 1:
+            heappush(h, 2)
+            hset.add(2)
+        else:
+            mp = m * prod(ps.keys())
+            if mp not in hset:
+                heappush(h, mp)
+                hset.add(mp)
+            mp = m * nextprime(p := max(ps.keys())) ** ps[p]
+            if mp not in hset:
+                heappush(h, mp)
+                hset.add(mp)
+
+
+def A113424(n):
+    return comb(6 * n, m := 3 * n) * comb(m, n)
+
+
+def A006335(n):
+    return (comb(3 * n, n - 1) << (n << 1) - 1) // comb(n + 1, 2) if n else 1
+
+
+def A000897(n):
+    return comb(n << 2, m := n << 1) * comb(m, n)
+
+
+def A001451(n):
+    return comb(5 * n, m := n << 1) * comb(m, n)
+
+
+def A273628(n):
+    return comb(7 * n, m := n << 1) * comb(m, n)
+
+
+def A273629(n):
+    return comb(9 * n, m := n << 1) * comb(m, n)
+
+
+def A365308(n):
+    def g(x):
+        c = 2
+        for i in count(2):
+            c *= prime(i)
+            if c > x:
+                return 0 if i < 3 else i - 1
+
+    def f(x):
+        return (
+            n
+            - 1
+            + x
+            - sum(
+                g(integer_nthroot(x, k)[0]) for k in range(2, integer_log(x, 6)[0] + 1)
+            )
+        )
+
+    return bisection(f, n, n)
+
+
+def A365308_gen():  # generator of terms
+    h, hset = [1], {1}
+    while True:
+        yield (m := heappop(h))
+        ps = factorint(m)
+        if m == 1:
+            heappush(h, 36)
+            hset.add(36)
+        else:
+            mp = m * prod(ps.keys())
+            if mp not in hset:
+                heappush(h, mp)
+                hset.add(mp)
+            mp = m * nextprime(p := max(ps.keys())) ** ps[p]
+            if mp not in hset:
+                heappush(h, mp)
+                hset.add(mp)
+
+
+def A291185(n):
+    h, hset = [1], {1}
+    while True:
+        m = heappop(h)
+        ps = factorint(m)
+        if prod(p ** (e + 2) - p for p, e in ps.items()) >= n * m * prod(
+            (p - 1) ** 2 for p, e in ps.items()
+        ):
+            return m
+        for p in ps:
+            if p == 2 or ps[prevprime(p)] > ps[p]:
+                mp = m * p
+                if mp not in hset:
+                    heappush(h, mp)
+                    hset.add(mp)
+        mp = m * nextprime(max(ps.keys(), default=1))
+        if mp not in hset:
+            heappush(h, mp)
+            hset.add(mp)
+
+
+def A057863(n):
+    return prod(((k << 1) | 1) ** (n - k) for k in range(n + 1))
+
+
+def A394056(n):
+    return int(
+        -((t := primepi(s := isqrt(n))) * (t + 1) >> 1)
+        + sum(primepi(n // k) for k in primerange(1, s + 1))
+        + primepi(integer_nthroot(n, 3)[0])
+    )
+
+
+def A394642(n):
+    return comb(7 * n, 2 * n) * comb(5 * n, 2 * n) * comb(3 * n, n)
+
+
+@lru_cache(maxsize=None)
+def A335062(n):
+    return 1 - sum(
+        -A335062(d) if n // d & 1 else A335062(d)
+        for d in divisors(n, generator=True, proper=True)
+    )
+
+
+@lru_cache(maxsize=None)
+def A308077(n):
+    return (
+        sum(
+            A308077(d) if n // d & 1 else -A308077(d)
+            for d in divisors(n, generator=True, proper=True)
+        )
+        if n - 1
+        else 1
+    )
+
+
+@lru_cache(maxsize=None)
+def A325144(n):
+    return (
+        sum(
+            A325144(d) if d & 1 else -A325144(d)
+            for d in divisors(n, generator=True, proper=True)
+        )
+        if n - 1
+        else 1
+    )
+
+
+@lru_cache(maxsize=None)
+def A348956(n):
+    return (
+        sum(
+            A348956(d - 1) if n // d & 1 else -A348956(d - 1)
+            for d in divisors(n, generator=True, proper=True)
+        )
+        if n
+        else 1
+    )
+
+
+def A359750_gen():  # generator of terms
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(g(x // m**i, m - 1, i) for i in range(j, integer_log(x, m)[0] + 1))
+            if m - 2
+            else max(0, x.bit_length() - j)
+        )
+
+    def f(x):
+        c, f = n - 1 + x, 1
+        for k in count(2):
+            f *= k
+            if f > x:
+                break
+            c -= g(x, k, 1)
+        return c
+
+    a, b = 0, 0
+    for n in count(1):
+        k = bisection(f, max(b, n), max(b, n))
+        if k == b and k != a:
+            yield k
+        a, b = b, k
+
+
+def A005717(n):
+    return n * sum(
+        comb(n - 1, m := k << 1) * comb(m, k) // (k + 1) for k in range(n + 1 >> 1)
+    )
+
+
+def A394545_gen():  # generator of terms
+    return filter(lambda m: m > 1 and is_pal(m // max(primefactors(m))), pal10_gen())
+
+
+def A038700(n):
+    m = 2
+    while q := (m + 1) % n:
+        m = nextprime(m + n - 1 - q)
+    return m
+
+
+def A392779(n):
+    if n == 0:
+        return 1
+    s = symbols("x_0:" + str(n))
+    return len(
+        set(Poly(prod(sum(s[j] for j in range(i)) for i in range(1, n + 1))).coeffs())
+    )
+
+
+def A349404(n):
+    if n == 0:
+        return 1
+    s = symbols("x_0:" + str(n))
+    return max(
+        Poly(prod(sum(s[j] for j in range(i)) for i in range(1, n + 1))).coeffs()
+    )
+
+
+def A322585(n):
+    f = factorint(n)
+    return int(
+        list(f.keys()) == (ps := list(primerange(max(f, default=1) + 1)))
+        and all(f[ps[i]] >= f[ps[i + 1]] for i in range(len(ps) - 1))
+    )
+
+
+def A344438(n):
+    if n == 1:
+        return 1
+
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(g(x // m**i, m - 1, i) for i in range(j, integer_log(x, m)[0] + 1))
+            if m - 2
+            else max(0, x.bit_length() - j)
+        )
+
+    def f(x):
+        c, r = 1, 1
+        for k in count(2):
+            r *= k
+            if r > x:
+                break
+            c += g(x, k, 1)
+        return c
+
+    return int(bool(f(n) - f(n - 1)))
+
+
+def A085089(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    c, p = 1, 1
+    for k in count(1):
+        p *= prime(k)
+        if p > n:
+            break
+        c += g(n, k, 1)
+    return c
+
+
+def A025488(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    c, p, m = 1, 1, 1 << n
+    for k in count(1):
+        p *= prime(k)
+        if p > m:
+            break
+        c += g(m, k, 1)
+    return c
+
+
+def A056099(n):
+    return A025488(n) - A025488(n - 1) if n else 1
+
+
+def A181820(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    def f(x):
+        c, p = n - 1 + x, 1
+        for k in count(1):
+            p *= prime(k)
+            if p > x:
+                break
+            c -= g(x, k, 1)
+        return c
+
+    return prod(prime(e) for e in factorint(bisection(f, n, n)).values())
+
+
+def A394544(n):
+    if n == 1:
+        return 1
+    x = 10 ** integer_log(n >> 1, 10)[0]
+    y = 10 * x
+    return max(
+        primefactors(
+            (c := n - x) * x + int(str(c)[-2::-1] or "0")
+            if n < x + y
+            else (c := n - y) * y + int(str(c)[::-1] or "0")
+        ),
+        default=1,
+    )
+
+
+def A394546_gen():  # generator of terms
+    return filter(
+        lambda m: m > 1 and not is_pal(m // max(primefactors(m))), pal10_gen()
+    )
+
+
+def A394591(n):
+    return sum(primefactors(comb(3 * n, n)))
+
+
+def A394730_gen(startvalue=0):  # generator of terms >= startvalue
+    return filter(
+        lambda k: bool(
+            len(
+                diop_quadratic(
+                    2 * (factorial(k) - symbolx**2) - symboly * (symboly + 1)
+                )
+            )
+        ),
+        count(max(startvalue, 0)),
+    )
+
+
+def A393012(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m > 3
+            else max(0, integer_log(x, 5)[0] + 1 - j)
+        )
+
+    def f(x):
+        c, p = n - 1 + x, 1
+        for k in count(3):
+            p *= prime(k)
+            if p > x:
+                break
+            c -= g(x, k, 1)
+        return c
+
+    return bisection(f, n, n)
+
+
+def A393012_gen():  # generator of terms
+    h, hset = [1], {1}
+    while True:
+        yield (m := heappop(h))
+        ps = factorint(m)
+        for p in ps:
+            if p == 5 or ps[prevprime(p)] > ps[p]:
+                mp = m * p
+                if mp not in hset:
+                    heappush(h, mp)
+                    hset.add(mp)
+        mp = m * nextprime(max(ps.keys(), default=3))
+        if mp not in hset:
+            heappush(h, mp)
+            hset.add(mp)
+
+
+def A330682(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    def f(x):
+        c, p = n - 1 + x, 1
+        for k in count(1):
+            p *= prime(k)
+            if p > x:
+                break
+            c -= g(x, k, 1)
+        return c
+
+    return int(multiplicity(3, m := bisection(f, n, n)) == (~m & m - 1).bit_length())
+
+
+def A329897(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m > 2
+            else max(0, integer_log(x, 6)[0] + 1 - j)
+        )
+
+    def f(x):
+        c, p = n - 1 + x, 1
+        for k in count(2):
+            p *= prime(k) if k > 2 else 6
+            if p > x:
+                break
+            c -= g(x, k, 1)
+        return c
+
+    @lru_cache(maxsize=None)
+    def h(x, m, j):
+        return (
+            sum(
+                h(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    m = bisection(f, n, n)
+    c, p = 1, 1
+    for k in count(1):
+        p += prime(k)
+        if p > m:
+            break
+        c += h(m, k, 1)
+    return c
+
+
+def A329897_gen():  # generator of terms
+    h, hset = [1], {1}
+    for c in count(1):
+        m = heappop(h)
+        if multiplicity(3, m) == (~m & m - 1).bit_length():
+            yield c
+        ps = factorint(m)
+        for p in ps:
+            if p == 2 or ps[prevprime(p)] > ps[p]:
+                mp = m * p
+                if mp not in hset:
+                    heappush(h, mp)
+                    hset.add(mp)
+        mp = m * nextprime(max(ps.keys(), default=1))
+        if mp not in hset:
+            heappush(h, mp)
+            hset.add(mp)
+
+
+def A393011(n):
+    return comb(7 * n, 2 * n)
+
+
+def A181815(n):
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(j, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else max(0, x.bit_length() - j)
+        )
+
+    def f(x):
+        c, p = n - 1 + x, 1
+        for k in count(1):
+            p *= prime(k)
+            if p > x:
+                break
+            c -= g(x, k, 1)
+        return c
+
+    fs = factorint(bisection(f, n, n))
+    ps = sorted(fs)
+    l = len(ps)
+    return prod(
+        ps[i] ** (fs[ps[i]] - (fs[ps[i + 1]] if i < l - 1 else 0)) for i in range(l)
+    )
+
+
+def A394724(n):
+    return comb(7 * n, m := 3 * n) * comb(m, n) * comb(n << 1, n)
+
+
+def A055932_gen():  # generator of terms
+    h, hset = [(1, (1,))], {1}
+    while True:
+        m, ps = heappop(h)
+        yield m
+        for p in ps:
+            mp = m * p
+            if mp not in hset:
+                heappush(h, (mp, ps))
+                hset.add(mp)
+        q = nextprime(max(ps, default=1))
+        mp = m * q
+        if mp not in hset:
+            heappush(h, (mp, (ps + (q,))))
+            hset.add(mp)
+
+
+def A384530_gen():  # generator of terms
+    h, hset = [(1, (1,))], {1}
+    while True:
+        m, ps = heappop(h)
+        if m > 3 and isprime(m - 1) and isprime(m + 1):
+            yield m
+        for p in ps:
+            mp = m * p
+            if mp not in hset:
+                heappush(h, (mp, ps))
+                hset.add(mp)
+        q = nextprime(max(ps, default=1))
+        mp = m * q
+        if mp not in hset:
+            heappush(h, (mp, (ps + (q,))))
+            hset.add(mp)
+
+
+def A373559(n):
+    @lru_cache(maxsize=None)
+    def g(x, m):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1)
+                for i in range(1, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else x.bit_length() - 1
+        )
+
+    def f(x):
+        c, p, y = n - 1 + x, 1, isqrt(x)
+        for k in count(1):
+            p *= prime(k)
+            if p > y:
+                break
+            c -= g(y, k)
+        return c
+
+    return bisection(f, n, n)
+
+
+def A373559_gen():  # generator of terms
+    h, hset = [(1, (1,))], {1}
+    while True:
+        m, ps = heappop(h)
+        yield m
+        for p in ps:
+            mp = m * p**2
+            if mp not in hset:
+                heappush(h, (mp, ps))
+                hset.add(mp)
+        q = nextprime(max(ps, default=1))
+        mp = m * q**2
+        if mp not in hset:
+            heappush(h, (mp, (ps + (q,))))
+            hset.add(mp)
+
+
+def A373515(n):
+    @lru_cache(maxsize=None)
+    def g(x, m):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1)
+                for i in range(1, integer_log(x, prime(m))[0] + 1)
+            )
+            if m - 1
+            else x.bit_length() > 1
+        )
+
+    def f(x):
+        c, p = n + x, 1
+        for k in count(1):
+            p *= prime(k)
+            if p > x:
+                break
+            c -= g(x, k)
+        return c
+
+    return bisection(f, n, n)
+
+
+def A373515_gen():  # generator of terms
+    h, hset = [(2, tuple())], {2}
+    while True:
+        m, ps = heappop(h)
+        yield m
+        for p in ps:
+            mp = m * p
+            if mp not in hset:
+                heappush(h, (mp, ps))
+                hset.add(mp)
+        q = nextprime(max(ps, default=2))
+        mp = m * q
+        if mp not in hset:
+            heappush(h, (mp, (ps + (q,))))
+            hset.add(mp)
+
+
+def A368325(n):
+    if n == 1:
+        return 1
+
+    @lru_cache(maxsize=None)
+    def g(x):
+        return primorial(x)
+
+    return bisection(lambda x: n + x - x.bit_length() + 1 - bsearch(g, x), n, n)
+
+
+def A393389_gen():  # generator of terms
+    h, hset = [(1, (1,))], {1}
+    while True:
+        m, ps = heappop(h)
+        if not isprime(m + 1):
+            fs = factorint(m + 1)
+            if max(fs.values()) == 1 and not any(m % (p - 1) for p in fs):
+                yield m + 1
+        for p in ps:
+            mp = m * p
+            if mp not in hset:
+                heappush(h, (mp, ps))
+                hset.add(mp)
+        q = nextprime(max(ps, default=1))
+        mp = m * q
+        if mp not in hset:
+            heappush(h, (mp, (ps + (q,))))
+            hset.add(mp)
+
+
+def A145108(n):
+    @lru_cache(maxsize=None)
+    def h(n):
+        return prod(prime(k) ** (k + 1) for k in range(1, n + 1))
+
+    @lru_cache(maxsize=None)
+    def g(x, m, j):
+        return (
+            sum(
+                g(x // (prime(m) ** i), m - 1, i)
+                for i in range(1, min(j - 1, integer_log(x, prime(m))[0]) + 1)
+            )
+            if m - 1
+            else max(0, min(j, x.bit_length()) - 2)
+        )
+
+    def f(x):
+        c = n + x
+        for k in count(1):
+            if h(k) > x:
+                break
+            c -= g(x, k, integer_log(x, prime(k))[0] + 1)
+        return c
+
+    return bisection(f, n, n)
+
+
+def A145108_gen():  # generator of terms
+    h, hset = [4], {4}
+    while True:
+        yield (m := heappop(h))
+        ps = factorint(m)
+        for p in ps:
+            if p == max(ps) or ps[nextprime(p)] > ps[p] + 1:
+                mp = m * p
+                if mp not in hset:
+                    heappush(h, mp)
+                    hset.add(mp)
+        mp = m * nextprime(a := max(ps.keys())) ** (ps[a] + 1)
+        if mp not in hset:
+            heappush(h, mp)
+            hset.add(mp)
+
+
+def A386252_gen():  # generator of terms
+    h, hset = [30], {30}
+    while True:
+        m = heappop(h)
+        if isprime(m - 1) and isprime(m + 1):
+            yield m
+        for p in (2, 3, 5):
+            mp = m * p
+            if mp not in hset:
+                heappush(h, mp)
+                hset.add(mp)
+
+
+def A384545(n):
+    h, hset, ps = [1], {1}, tuple(prime(i) for i in range(1, n + 1))
+    q = prod(ps)
+    while True:
+        m = heappop(h)
+        if isprime(m * q - 1) and isprime(m * q + 1):
+            return m
+        for p in ps:
+            mp = m * p
+            if mp not in hset:
+                heappush(h, mp)
+                hset.add(mp)
+
+
+def A322793(n):
+    @lru_cache(maxsize=None)
+    def primorial(x):
+        return 2 if x == 1 else primorial(x - 1) * prime(x)
+
+    def f(x):
+        c = n + x
+        for k in count(1):
+            if primorial(k) > x:
+                break
+            c -= integer_log(x, primorial(k))[0] - 1
+        return c
+
+    return bisection(f, n, n)
+
+
+def A322793_gen():  # generator of terms
+    h, hset = [(4, (2,), 2)], {4}
+    while True:
+        m, ps, e = heappop(h)
+        yield m
+        for p in ps:
+            mp = m * prod(ps)
+            if mp not in hset:
+                heappush(h, (mp, ps, e + 1))
+                hset.add(mp)
+        q = nextprime(max(ps, default=1))
+        mp = m * q**e
+        if mp not in hset:
+            heappush(h, (mp, (ps + (q,)), e))
+            hset.add(mp)
+
+
+def A385433_gen():  # generator of terms
+    h, hset = [1], {1}
+    while True:
+        m = heappop(h)
+        if isprime(m - 1) and isprime(m + 1):
+            yield (~m & m - 1).bit_length()
+        for p in (2, 3):
+            mp = m * p
+            if mp not in hset:
+                heappush(h, mp)
+                hset.add(mp)
+
+
+def A386730_gen():  # generator of terms
+    h, hset = [1], {1}
+    while True:
+        m = heappop(h)
+        if isprime(m - 1) and isprime(m + 1):
+            yield multiplicity(3, m)
+        for p in (2, 3):
+            mp = m * p
+            if mp not in hset:
+                heappush(h, mp)
+                hset.add(mp)
+
+
+def A333962_gen():  # generator of terms
+    return map(A330575, A025487_gen())
+
+
+def A333962(n):
+    return A330575(A025487(n))
+
+
+def A194099_gen():  # generator of terms
+    h, hset = [(1, (1,))], {1}
+    while True:
+        m, ps = heappop(h)
+        a, b = integer_nthroot(m + 1, 2)
+        if b:
+            yield a
+        for p in ps:
+            mp = m * p
+            if mp not in hset:
+                heappush(h, (mp, ps))
+                hset.add(mp)
+        q = nextprime(max(ps, default=1))
+        mp = m * q
+        if mp not in hset:
+            heappush(h, (mp, (ps + (q,))))
+            hset.add(mp)
+
+
+def A141399_gen():  # generator of terms
+    h, hset = [(1, (1,))], {1}
+    while True:
+        m, ps = heappop(h)
+        a, b = integer_nthroot(m + 1, 2)
+        if b:
+            yield a - 1 >> 1
+        for p in ps:
+            mp = m * p
+            if mp not in hset:
+                heappush(h, (mp, ps))
+                hset.add(mp)
+        q = nextprime(max(ps, default=1))
+        mp = m * q
+        if mp not in hset:
+            heappush(h, (mp, (ps + (q,))))
+            hset.add(mp)
+
+
+def A394580(n):
+    ps = tuple(prime(i) for i in range(1, n + 1))
+
+    @lru_cache(maxsize=None)
+    def g(x, m):
+        return (
+            sum(
+                g(x // ps[m - 1] ** i, m - 1)
+                for i in range(integer_log(x, ps[m - 1])[0] + 1)
+            )
+            if m - 1
+            else x.bit_length()
+        )
+
+    k = g(primorial(n + 1) - 1, n)
+
+    def f(x):
+        return k + x - g(x, n)
+
+    return bisection(f, k, k)
+
+
+def A394581(n):
+    ps = tuple(prime(i) for i in range(1, n + 1))
+
+    @lru_cache(maxsize=None)
+    def g(x, m):
+        return (
+            sum(
+                g(x // ps[m - 1] ** i, m - 1)
+                for i in range(integer_log(x, ps[m - 1])[0] + 1)
+            )
+            if m - 1
+            else x.bit_length()
+        )
+
+    k = g(p := primorial(n + 1), n) + 1
+
+    def f(x):
+        return k + x - g(x, n)
+
+    return bisection(f, p, p)
+
+
+def A008479(n):
+    if n == 1:
+        return 1
+    ps = tuple(sorted(primefactors(n)))
+
+    @lru_cache(maxsize=None)
+    def g(x, m):
+        return (
+            0
+            if x == 1
+            else (
+                sum(
+                    g(x // ps[m] ** i, m - 1)
+                    for i in range(1, integer_log(x, ps[m])[0] + 1)
+                )
+                if m
+                else integer_log(x, ps[0])[0]
+            )
+        )
+
+    return g(n, len(ps) - 1)
+
+
+def A392635_gen():  # generator of terms
+    h, hset, c, k = [1], {1}, 0, 0
+    while True:
+        m = heappop(h)
+        if k > c * m:
+            yield k
+            c = Fraction(k, m)
+        for p in (2, 3, 5, 7):
+            mp = m * p
+            if mp not in hset:
+                heappush(h, mp)
+                hset.add(mp)
+        k = m
