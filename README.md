@@ -46,6 +46,11 @@ Some functions `Axxxxxx_gen` contain an optional keyword `startvalue` that retur
 
 For some sequences, e.g. `A269483`, both types of functions `Axxxxxx` and `Axxxxxx_gen` are provided.
 
+The functions bearing the sequence number in the name allows the definition of functions such as [A333962](https://oeis.org/A333962) to be essentially identical to the definition in [OEIS](https://oeis.org/):
+```
+def A333962(n): return A330575(A025487(n))
+```
+
 ## Examples
 
 Least power of 3 having exactly n consecutive 7's in its decimal representation.
