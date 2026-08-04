@@ -292,6 +292,11 @@ def is_cubefree_string(s):
     return True
 
 
+def is_squarefree(n):
+    """check if n is squarefree"""
+    return all(d < 2 for d in factorint(n).values())
+
+
 def palindrome(n, b=10):
     """n-th palindrome in base b, where 2 <= b <= 62"""
     if n == 1:
@@ -835,7 +840,7 @@ def greedy_egyptian_frac(a, b):
 
 
 def fibonacci_mod(n, m):
-    """n-th Fibonacci number mod m"""
+    """n-th Fibonacci number mod m (A000045)"""
     a, b, c, d, a2, b2, c2, d2 = 1, 1, 1, 0, 1, 0, 0, 1
     for x in bin(n)[2:]:
         e, f = b2 * c2 % m, k if (k := a2 + d2) < m else k - m
@@ -851,7 +856,7 @@ def fibonacci_mod(n, m):
 
 
 def lucas_mod(n, m):
-    """n-th Lucas number mod m"""
+    """n-th Lucas number mod m (A000032)"""
     a, b, c, d, a2, b2, c2, d2 = 1, 1, 1, 0, 1, 0, 0, 1
     for x in bin(n)[2:]:
         e, f = b2 * c2 % m, k if (k := a2 + d2) < m else k - m
@@ -864,6 +869,100 @@ def lucas_mod(n, m):
                 (c2 * b + d2 * d) % m,
             )
     return (c2 + (d2 << 1)) % m
+
+
+def pell_mod(n, m):
+    """n-th Pell number mod m (A000129)"""
+    a, b, c, d, a2, b2, c2, d2 = 2, 1, 1, 0, 1, 0, 0, 1
+    for x in bin(n)[2:]:
+        e, f = b2 * c2 % m, k if (k := a2 + d2) < m else k - m
+        a2, b2, c2, d2 = (a2 * a2 + e) % m, b2 * f % m, c2 * f % m, (d2 * d2 + e) % m
+        if x == "1":
+            a2, b2, c2, d2 = (
+                (a2 * a + b2 * c) % m,
+                (a2 * b + b2 * d) % m,
+                (c2 * a + d2 * c) % m,
+                (c2 * b + d2 * d) % m,
+            )
+    return c2
+
+
+def tribonacci_mod(n, m):
+    """n-th Tribonacci number mod m (A000073)"""
+    a1, a2, a3, a4, a5, a6, a7, a8, a9 = 1, 0, 0, 0, 1, 0, 0, 0, 1
+    b1, b2, b3, b4, b5, b6, b7, b8, b9 = 1, 1, 1, 1, 0, 0, 0, 1, 0
+    for x in bin(n)[2:]:
+        a24, a37, a68, s15, s19, s59 = (
+            a2 * a4 % m,
+            a3 * a7 % m,
+            a6 * a8 % m,
+            k if (k := a1 + a5) < m else k - m,
+            k if (k := a1 + a9) < m else k - m,
+            k if (k := a5 + a9) < m else k - m,
+        )
+        a1, a2, a3, a4, a5, a6, a7, a8, a9 = (
+            (a1 * a1 + a24 + a37) % m,
+            (a2 * s15 + a3 * a8) % m,
+            (a3 * s19 + a2 * a6) % m,
+            (a4 * s15 + a6 * a7) % m,
+            (a24 + a5 * a5 + a68) % m,
+            (a3 * a4 + a6 * s59) % m,
+            (a7 * s19 + a4 * a8) % m,
+            (a2 * a7 + a8 * s59) % m,
+            (a37 + a68 + a9 * a9) % m,
+        )
+        if x == "1":
+            a1, a2, a3, a4, a5, a6, a7, a8, a9 = (
+                (a1 * b1 + a2 * b4 + a3 * b7) % m,
+                (a1 * b2 + a2 * b5 + a3 * b8) % m,
+                (a1 * b3 + a2 * b6 + a3 * b9) % m,
+                (a4 * b1 + a5 * b4 + a6 * b7) % m,
+                (a4 * b2 + a5 * b5 + a6 * b8) % m,
+                (a4 * b3 + a5 * b6 + a6 * b9) % m,
+                (a7 * b1 + a8 * b4 + a9 * b7) % m,
+                (a7 * b2 + a8 * b5 + a9 * b8) % m,
+                (a7 * b3 + a8 * b6 + a9 * b9) % m,
+            )
+    return a7
+
+
+def narayana_mod(n, m):
+    """n-th Narayana's cows sequence number mod m (A000930)"""
+    a1, a2, a3, a4, a5, a6, a7, a8, a9 = 1, 0, 0, 0, 1, 0, 0, 0, 1
+    b1, b2, b3, b4, b5, b6, b7, b8, b9 = 1, 0, 1, 1, 0, 0, 0, 1, 0
+    for x in bin(n)[2:]:
+        a24, a37, a68, s15, s19, s59 = (
+            a2 * a4 % m,
+            a3 * a7 % m,
+            a6 * a8 % m,
+            k if (k := a1 + a5) < m else k - m,
+            k if (k := a1 + a9) < m else k - m,
+            k if (k := a5 + a9) < m else k - m,
+        )
+        a1, a2, a3, a4, a5, a6, a7, a8, a9 = (
+            (a1 * a1 + a24 + a37) % m,
+            (a2 * s15 + a3 * a8) % m,
+            (a3 * s19 + a2 * a6) % m,
+            (a4 * s15 + a6 * a7) % m,
+            (a24 + a5 * a5 + a68) % m,
+            (a3 * a4 + a6 * s59) % m,
+            (a7 * s19 + a4 * a8) % m,
+            (a2 * a7 + a8 * s59) % m,
+            (a37 + a68 + a9 * a9) % m,
+        )
+        if x == "1":
+            a1, a2, a3, a4, a5, a6, a7, a8, a9 = (
+                (a1 * b1 + a2 * b4 + a3 * b7) % m,
+                (a1 * b2 + a2 * b5 + a3 * b8) % m,
+                (a1 * b3 + a2 * b6 + a3 * b9) % m,
+                (a4 * b1 + a5 * b4 + a6 * b7) % m,
+                (a4 * b2 + a5 * b5 + a6 * b8) % m,
+                (a4 * b3 + a5 * b6 + a6 * b9) % m,
+                (a7 * b1 + a8 * b4 + a9 * b7) % m,
+                (a7 * b2 + a8 * b5 + a9 * b8) % m,
+                (a7 * b3 + a8 * b6 + a9 * b9) % m,
+            )
+    return a1
 
 
 """ Lunar arithmetic """
@@ -2939,13 +3038,6 @@ def A045918(n):
             [str(len(m.group(0))) + m.group(0)[0] for m in finditer(r"(\d)\1*", str(n))]
         )
     )
-
-
-def A001602(n):
-    a, b, i, p = 0, 1, 1, prime(n)
-    while b % p:
-        a, b, i = b, (a + b) % p, i + 1
-    return i
 
 
 def A014577(n):
@@ -102022,22 +102114,6 @@ def A265396_gen():  # generator of terms
             c = m
 
 
-def A265401_gen(startvalue=1):  # generator of terms >= startvalue
-    for n in count(max(startvalue, 1)):
-        m = (
-            prod(
-                (p if sum(sympydigits(n << 1, p)[1:]) == 2 else 1)
-                for p in primefactors(n * ((n << 1) - 1))
-                if p > 2
-            )
-            << (not (n & -n) ^ n)
-            if n > 1
-            else 0
-        )
-        if m == 1:
-            yield n
-
-
 def A265402_gen(startvalue=1):  # generator of terms >= startvalue
     for n in count(max(startvalue, 1)):
         m = (
@@ -102052,6 +102128,14 @@ def A265402_gen(startvalue=1):  # generator of terms >= startvalue
         )
         if m == n:
             yield n
+
+
+def A265402_genv2(startvalue=2):  # generator of terms >= startvalue
+    n = max(nextprime(startvalue - 1), 2)
+    while True:
+        if len(factorint((n << 1) - 1)) > 1:
+            yield n
+        n = nextprime(n)
 
 
 def A265403_gen(startvalue=1):  # generator of terms >= startvalue
@@ -102081,6 +102165,12 @@ def A395746_gen(startvalue=1):  # generator of terms >= startvalue
             if n > 1
             else 0
         ):
+            yield n
+
+
+def A395746_genv2(startvalue=2):  # generator of terms >= startvalue
+    for n in count(max(startvalue, 2)):
+        if n == 15 or (len(factorint(n)) == 1 and len(factorint((n << 1) - 1)) == 1):
             yield n
 
 
@@ -107278,3 +107368,848 @@ def A075702_gen():  # generator of terms
     for k in count(1):
         if not fibonacci_mod(k, p := nextprime(p)):
             yield k
+
+
+def A001602(n):
+    p = prime(n)
+    return next(filter(lambda m: not fibonacci_mod(m, p), count(1)))
+
+
+def A328784_gen():  # generator of terms
+    p = 1
+    for k in count(1):
+        if not lucas_mod(k, p := nextprime(p)):
+            yield k
+
+
+def A271332_gen():  # generator of terms
+    def f(n, m):
+        a, b, c, d, a2, b2, c2, d2 = 1, 1, 1, 0, 1, 0, 0, 1
+        for x in bin(n)[2:]:
+            e, f = b2 * c2 % m, k if (k := a2 + d2) < m else k - m
+            a2, b2, c2, d2 = (
+                (a2 * a2 + e) % m,
+                b2 * f % m,
+                c2 * f % m,
+                (d2 * d2 + e) % m,
+            )
+            if x == "1":
+                a2, b2, c2, d2 = (
+                    (a2 * a + b2 * c) % m,
+                    (a2 * b + b2 * d) % m,
+                    (c2 * a + d2 * c) % m,
+                    (c2 * b + d2 * d) % m,
+                )
+        return c2 * d2 % m
+
+    p = 1
+    for k in count(1):
+        if not f(k + 1, p := nextprime(p)):
+            yield k
+
+
+def A070550(n):
+    b, a = fib2((n >> 1) + 2)
+    return a * (a + b if n & 1 else b)
+
+
+def A006498(n):
+    b, a = fib2((n >> 1) + 2)
+    return a * (b if n & 1 else a)
+
+
+def A059840(n):
+    return prod(fib2(n)) - (n & 1 ^ 1)
+
+
+def A236428(n):
+    b, a = fib2(n + 2)
+    return a * b - (b - a) ** 2
+
+
+def A166516(n):
+    b, a = fib2(n + 1 & -2)
+    return a * (a if n & 1 else a + b)
+
+
+def A094396_gen(startvalue=1):  # generator of terms >= startvalue
+    return filter(lambda k: not lucas_mod(k - 1, k), count(max(startvalue, 1)))
+
+
+def A094397_gen(startvalue=1):  # generator of terms >= startvalue
+    return filter(lambda k: not lucas_mod(k + 1, k), count(max(startvalue, 1)))
+
+
+def A228439_gen(startvalue=1):  # generator of terms >= startvalue
+    for n in count(max(startvalue, 1)):
+        a, b, c, d, a2, b2, c2, d2 = 1, -2, 1, 0, 1, 0, 0, 1
+        for x in bin(n)[2:]:
+            e, f = b2 * c2 % n, k if (k := a2 + d2) < n else k - n
+            a2, b2, c2, d2 = (
+                (a2 * a2 + e) % n,
+                b2 * f % n,
+                c2 * f % n,
+                (d2 * d2 + e) % n,
+            )
+            if x == "1":
+                a2, b2, c2, d2 = (
+                    (a2 * a + b2 * c) % n,
+                    (a2 * b + b2 * d) % n,
+                    (c2 * a + d2 * c) % n,
+                    (c2 * b + d2 * d) % n,
+                )
+        if not c2:
+            yield n
+
+
+def A308802_gen(startvalue=2):  # generator of terms >= startvalue
+    p = nextprime(max(startvalue, 2) - 1)
+    while True:
+        for k in count(1):
+            if not fibonacci_mod(k, p):
+                if 9 * k == p - 1:
+                    yield p
+                break
+        p = nextprime(p)
+
+
+def A056740_gen(startvalue=1):  # generator of terms >= startvalue
+    for k in count((m := max(startvalue, 1)) + (m & 1 ^ 1), 2):
+        a = pow(2, k, k)
+        if a & 1 and pow(2, k + 2, k - 2) == a:
+            yield k
+
+
+def A397468(n):
+    return prime(isqrt(3 * n * n))
+
+
+def A397768(n):
+    return sum(map(lambda d: 1 << int(d), str(n)))
+
+
+def A397801(n):
+    return sum(multiplicity(3, i) for i in range(n, 0, -4))
+
+
+def A396571(n):
+    if n == 1:
+        return 12
+
+    def f(x):
+        return n + primepi(x) + (x >> 1)
+
+    m, k = n, f(n)
+    while m != k:
+        m, k = k, f(k)
+    m2 = m + 2
+    while isprime(m2):
+        m2 += 2
+    return m + m2 >> 1
+
+
+def A085868(n):
+    def g(x):
+        c = 0
+        for i in range(integer_log(x, 7)[0] + 1):
+            for j in range(integer_log(m := x // 7**i, 5)[0] + 1):
+                for k in range(integer_log(r := m // 5**j, 3)[0] + 1):
+                    c += (r // 3**k).bit_length()
+        return c
+
+    m = g(10**n - 1)
+
+    def f(x):
+        return m + x - g(x)
+
+    return bisection(f, m, 10**n - 1)
+
+
+def A085867(n):
+    def g(x):
+        c = 0
+        for i in range(integer_log(x, 7)[0] + 1):
+            for j in range(integer_log(m := x // 7**i, 5)[0] + 1):
+                for k in range(integer_log(r := m // 5**j, 3)[0] + 1):
+                    c += (r // 3**k).bit_length()
+        return c
+
+    m = g(10 ** (n - 1))
+
+    def f(x):
+        return m + 1 + x - g(x)
+
+    return bisection(f, m + 1, 10 ** (n - 1))
+
+
+def A258321(n):
+    a, b = fib2(n)
+    return (n + 1) * a + (n * b << 1)
+
+
+def A112992_gen(startvalue=1):  # generator of terms >= startvalue
+    return filter(
+        lambda k: (m := pow(2, k, k)) == 0 or m & 1, count(max(startvalue, 1))
+    )
+
+
+def A094402_gen(startvalue=1):  # generator of terms >= startvalue
+    def f(n, m):  # returns true if fibonacci(n+1) == lucas(n)+1 == 0 mod m
+        a, b, c, d, a2, b2, c2, d2 = 1, 1, 1, 0, 1, 0, 0, 1
+        for x in bin(n)[2:]:
+            e, f = b2 * c2 % m, k if (k := a2 + d2) < m else k - m
+            a2, b2, c2, d2 = (
+                (a2 * a2 + e) % m,
+                b2 * f % m,
+                c2 * f % m,
+                (d2 * d2 + e) % m,
+            )
+            if x == "1":
+                a2, b2, c2, d2 = (
+                    (a2 * a + b2 * c) % m,
+                    (a2 * b + b2 * d) % m,
+                    (c2 * a + d2 * c) % m,
+                    (c2 * b + d2 * d) % m,
+                )
+        return (d2 + 1) % m == 0 == (c2 - 1) % m
+
+    return (k for k in count(max(startvalue, 1)) if f(k, k))
+
+
+def A396945(n):
+    return prod(
+        e + 1
+        for e in (
+            Counter(factorint(n + 1)) + Counter(factorint(n * (n - 1) + 1))
+        ).values()
+    )
+
+
+def A397854(n):
+    p = prime(n)
+    return next(
+        k
+        for k in sorted(nthroot_mod(1, p - 1, p**2, all_roots=True))
+        if is_primitive_root(k, p)
+    )
+
+
+def A211996(n):
+    return (
+        sum(
+            1
+            for d in takewhile(lambda d: d * d <= n, divisors(n))
+            if is_square(n // d + d)
+        )
+        << 1
+    ) - (is_square(n) and is_square(isqrt(n) << 1))
+
+
+def A056830(n):
+    return 10 ** (n + 1) // 99
+
+
+def A079978(n):
+    return int(n % 3 == 0)
+
+
+def A397038(n):
+    return sum(
+        k // n for k in {i * j for i in range(1, n + 1) for j in range(1, i + 1)}
+    )
+
+
+def A394708_gen(startvalue=2):  # generator of terms >= startvalue
+    p = max(2, nextprime(startvalue - 1))
+    plist = list(primerange(p + 1))
+    while True:
+        f = fibonacci(A001177(p))
+        for q in plist:
+            f //= q ** multiplicity(q, f)
+        if f == 1:
+            yield p
+        p = nextprime(p)
+        plist.append(p)
+
+
+def A395945_gen(startvalue=3):  # generator of terms >= startvalue
+    p = max(3, nextprime(startvalue - 1))
+    plist = list(primerange(3, p + 1))
+    while True:
+        f = (1 << n_order(2, p)) - 1
+        for q in plist:
+            f //= q ** multiplicity(q, f)
+        if f == 1:
+            yield p
+        p = nextprime(p)
+        plist.append(p)
+
+
+def A111035_gen(startvalue=1):  # generator of terms >= startvalue
+    for k in count(max(startvalue, 1)):
+        if k == 1 or fibonacci_mod(k + 2, k) == 1:
+            yield k
+
+
+def A331977_gen():  # generator of terms
+    m = -1
+    for k in count(1):
+        if k == 1 or fibonacci_mod(k + 2, k) == 1:
+            if m + 1 == k:
+                yield m
+            m = k
+
+
+def A195896(n):
+    def f(x):
+        return (
+            n
+            + x
+            - primepi(x + 1 >> 1)
+            - primepi((x + 1) // 3)
+            - (x >= 1)
+            - (x >= 2)
+            + (x >= 5)
+        )
+
+    return bisection(f, n, n)
+
+
+def A196127(n):
+    def f(x):
+        return (
+            n
+            + x
+            - primepi(x + 1)
+            - primepi(x + 1 >> 1)
+            - primepi((x + 1) // 3)
+            + (x >= 5)
+        )
+
+    return bisection(f, n, n)
+
+
+def A396856(n):
+    def f(x):
+        return int(
+            n
+            - 1
+            + x
+            - primepi(x)
+            + sum(
+                mobius(k) * (integer_nthroot(x, k)[0] - 1)
+                for k in range(2, x.bit_length())
+            )
+        )
+
+    return bisection(f, n, n)
+
+
+def A381053_gen():  # generator of terms
+    a, b = 0, 1
+    for k in count(1):
+        if k % 3 and fibonacci_mod(b + 2, b) == (b > 1):
+            yield k
+        a, b = b, a + b
+
+
+def A383021_gen():  # generator of terms
+    a, b = 0, 1
+    for k in count(1):
+        if fibonacci_mod(b + 2, b) == (b > 1):
+            yield k
+        a, b = b, a + b
+
+
+def A385186(n):
+    return (
+        2
+        if n < 2
+        else (
+            (p := prime(n + 1 >> 1)) * (p + 1)
+            if n & 1
+            else (p := prime(n + 2 >> 1)) * (p - 1)
+        )
+    )
+
+
+def A070875(n):
+    return (7 if n & 1 else 5) << (n >> 1)
+
+
+def A242830(n):
+    p = prime(n)
+    p2 = p * p
+    return sum(1 for b in range(2, p) if pow(b, p - 1, p2) == 1)
+
+
+def A255204_gen(startvalue=2):  # generator of terms >= startvalue
+    p = max(2, nextprime(startvalue - 1))
+    while True:
+        p2 = p * p
+        if 1 == sum(1 for b in range(2, p) if pow(b, p - 1, p2) == 1):
+            yield p
+        p = nextprime(p)
+
+
+def A255205_gen(startvalue=2):  # generator of terms >= startvalue
+    p = max(2, nextprime(startvalue - 1))
+    while True:
+        p2 = p * p
+        if 2 == sum(1 for b in range(2, p) if pow(b, p - 1, p2) == 1):
+            yield p
+        p = nextprime(p)
+
+
+def A159054_gen():  # generator of terms
+    for i in count(1):
+        if i % 3 and not fibonacci_mod(i - 3, i):
+            yield i
+
+
+def A159052_gen(startvalue=3):  # generator of terms >= startvalue
+    return filterfalse(
+        lambda i: fibonacci_mod(i - 2, i),
+        count(max(startvalue + (startvalue & 1 ^ 1), 3), 2),
+    )
+
+
+def A265401_gen(startvalue=1):  # generator of terms >= startvalue
+    for n in count(max(startvalue, 1)):
+        if (n & -n) ^ n:
+            m = (k := n * ((n << 1) - 1)) >> (~k & k - 1).bit_length()
+            n2 = n << 1
+            if all(sum(sympydigits(n2, p)[1:]) != 2 for p in primefactors(m)):
+                yield n
+
+
+def A371805_gen():  # generator of terms
+    def A001644_mod(n, m):  # A001644(n) mod m
+        a1, a2, a3, a4, a5, a6, a7, a8, a9 = 1, 0, 0, 0, 1, 0, 0, 0, 1
+        b1, b2, b3, b4, b5, b6, b7, b8, b9 = 1, 1, 1, 1, 0, 0, 0, 1, 0
+        for x in bin(n - 1)[2:]:
+            a24, a37, a68, s15, s19, s59 = (
+                a2 * a4 % m,
+                a3 * a7 % m,
+                a6 * a8 % m,
+                k if (k := a1 + a5) < m else k - m,
+                k if (k := a1 + a9) < m else k - m,
+                k if (k := a5 + a9) < m else k - m,
+            )
+            a1, a2, a3, a4, a5, a6, a7, a8, a9 = (
+                (a1 * a1 + a24 + a37) % m,
+                (a2 * s15 + a3 * a8) % m,
+                (a3 * s19 + a2 * a6) % m,
+                (a4 * s15 + a6 * a7) % m,
+                (a24 + a5 * a5 + a68) % m,
+                (a3 * a4 + a6 * s59) % m,
+                (a7 * s19 + a4 * a8) % m,
+                (a2 * a7 + a8 * s59) % m,
+                (a37 + a68 + a9 * a9) % m,
+            )
+            if x == "1":
+                a1, a2, a3, a4, a5, a6, a7, a8, a9 = (
+                    (a1 * b1 + a2 * b4 + a3 * b7) % m,
+                    (a1 * b2 + a2 * b5 + a3 * b8) % m,
+                    (a1 * b3 + a2 * b6 + a3 * b9) % m,
+                    (a4 * b1 + a5 * b4 + a6 * b7) % m,
+                    (a4 * b2 + a5 * b5 + a6 * b8) % m,
+                    (a4 * b3 + a5 * b6 + a6 * b9) % m,
+                    (a7 * b1 + a8 * b4 + a9 * b7) % m,
+                    (a7 * b2 + a8 * b5 + a9 * b8) % m,
+                    (a7 * b3 + a8 * b6 + a9 * b9) % m,
+                )
+        return (a1 + (a4 << 1) + 3 * a7) % m
+
+    for k in count(4):
+        if not isprime(k) and A001644_mod(k, k) == 1:
+            yield k
+
+
+def A173656_gen():  # generator of terms
+    def A001608_mod(n, m):  # A001608(n) mod m
+        a1, a2, a3, a4, a5, a6, a7, a8, a9 = 1, 0, 0, 0, 1, 0, 0, 0, 1
+        b1, b2, b3, b4, b5, b6, b7, b8, b9 = 0, 1, 1, 1, 0, 0, 0, 1, 0
+        for x in bin(n)[2:]:
+            a24, a37, a68, s15, s19, s59 = (
+                a2 * a4 % m,
+                a3 * a7 % m,
+                a6 * a8 % m,
+                k if (k := a1 + a5) < m else k - m,
+                k if (k := a1 + a9) < m else k - m,
+                k if (k := a5 + a9) < m else k - m,
+            )
+            a1, a2, a3, a4, a5, a6, a7, a8, a9 = (
+                (a1 * a1 + a24 + a37) % m,
+                (a2 * s15 + a3 * a8) % m,
+                (a3 * s19 + a2 * a6) % m,
+                (a4 * s15 + a6 * a7) % m,
+                (a24 + a5 * a5 + a68) % m,
+                (a3 * a4 + a6 * s59) % m,
+                (a7 * s19 + a4 * a8) % m,
+                (a2 * a7 + a8 * s59) % m,
+                (a37 + a68 + a9 * a9) % m,
+            )
+            if x == "1":
+                a1, a2, a3, a4, a5, a6, a7, a8, a9 = (
+                    (a1 * b1 + a2 * b4 + a3 * b7) % m,
+                    (a1 * b2 + a2 * b5 + a3 * b8) % m,
+                    (a1 * b3 + a2 * b6 + a3 * b9) % m,
+                    (a4 * b1 + a5 * b4 + a6 * b7) % m,
+                    (a4 * b2 + a5 * b5 + a6 * b8) % m,
+                    (a4 * b3 + a5 * b6 + a6 * b9) % m,
+                    (a7 * b1 + a8 * b4 + a9 * b7) % m,
+                    (a7 * b2 + a8 * b5 + a9 * b8) % m,
+                    (a7 * b3 + a8 * b6 + a9 * b9) % m,
+                )
+        return ((a7 << 1) + 3 * a9) % m
+
+    p = 2
+    while True:
+        if not A001608_mod(p, p * p):
+            yield p
+        p = nextprime(p)
+
+
+def A398316(n):
+    def f(x):
+        return int(
+            n
+            + x
+            + sum(
+                primepi(x // p**2)
+                + sum(
+                    squarefreepi(x // p**j) if j & 1 else -squarefreepi(x // p**j)
+                    for j in range(2, x.bit_length())
+                )
+                for p in primerange(isqrt(x) + 1)
+            )
+            + primepi(isqrt(x))
+            - primepi(integer_nthroot(x, 3)[0])
+        )
+
+    return bisection(f, n, n)
+
+
+def A013998_gen():  # generator of terms
+    def A001608_mod(n, m):  # A001608(n) mod m
+        a1, a2, a3, a4, a5, a6, a7, a8, a9 = 1, 0, 0, 0, 1, 0, 0, 0, 1
+        b1, b2, b3, b4, b5, b6, b7, b8, b9 = 0, 1, 1, 1, 0, 0, 0, 1, 0
+        for x in bin(n)[2:]:
+            a24, a37, a68, s15, s19, s59 = (
+                a2 * a4 % m,
+                a3 * a7 % m,
+                a6 * a8 % m,
+                k if (k := a1 + a5) < m else k - m,
+                k if (k := a1 + a9) < m else k - m,
+                k if (k := a5 + a9) < m else k - m,
+            )
+            a1, a2, a3, a4, a5, a6, a7, a8, a9 = (
+                (a1 * a1 + a24 + a37) % m,
+                (a2 * s15 + a3 * a8) % m,
+                (a3 * s19 + a2 * a6) % m,
+                (a4 * s15 + a6 * a7) % m,
+                (a24 + a5 * a5 + a68) % m,
+                (a3 * a4 + a6 * s59) % m,
+                (a7 * s19 + a4 * a8) % m,
+                (a2 * a7 + a8 * s59) % m,
+                (a37 + a68 + a9 * a9) % m,
+            )
+            if x == "1":
+                a1, a2, a3, a4, a5, a6, a7, a8, a9 = (
+                    (a1 * b1 + a2 * b4 + a3 * b7) % m,
+                    (a1 * b2 + a2 * b5 + a3 * b8) % m,
+                    (a1 * b3 + a2 * b6 + a3 * b9) % m,
+                    (a4 * b1 + a5 * b4 + a6 * b7) % m,
+                    (a4 * b2 + a5 * b5 + a6 * b8) % m,
+                    (a4 * b3 + a5 * b6 + a6 * b9) % m,
+                    (a7 * b1 + a8 * b4 + a9 * b7) % m,
+                    (a7 * b2 + a8 * b5 + a9 * b8) % m,
+                    (a7 * b3 + a8 * b6 + a9 * b9) % m,
+                )
+        return ((a7 << 1) + 3 * a9) % m
+
+    a, b = 3, 5
+    while True:
+        for c in range(a + 1, b):
+            if not A001608_mod(c, c):
+                yield c
+        a, b = b, nextprime(b)
+
+
+def A274518_gen(startvalue=1):  # generator of terms >= startvalue
+    return filterfalse(lambda k: tribonacci_mod(k, k * k), count(max(startvalue, 1)))
+
+
+def A363101(n):
+    def f(x):
+        return int(
+            n
+            - 2
+            + sum(
+                mobius(k) * ((x >> 1) // k**2 + 1 >> 1)
+                for k in range(1, isqrt(x >> 1) + 1, 2)
+            )
+            + x.bit_length()
+            + (x + 1 >> 1)
+        )
+
+    return bisection(f, n + 1, n + 1)
+
+
+def A004280(n):
+    return n if n < 3 else (n << 1) - 3
+
+
+def A232570_gen(startvalue=1):  # generator of terms >= startvalue
+    return filterfalse(lambda k: tribonacci_mod(k, k), count(max(startvalue, 1)))
+
+
+def A106310_gen(startvalue=2):  # generator of terms >= startvalue
+    p = max(nextprime(startvalue - 1), 2)
+    while True:
+        for j in count(2):
+            if not tribonacci_mod(j, p):
+                if not tribonacci_mod(j, p * p):
+                    yield p
+                break
+        p = nextprime(p)
+
+
+def A373055_gen(startvalue=1):  # generator of terms >= startvalue
+    def A000213_mod(n, m):
+        """n-th Tribonacci number mod m (A000213)"""
+        a1, a2, a3, a4, a5, a6, a7, a8, a9 = 1, 0, 0, 0, 1, 0, 0, 0, 1
+        b1, b2, b3, b4, b5, b6, b7, b8, b9 = 1, 1, 1, 1, 0, 0, 0, 1, 0
+        for x in bin(n)[2:]:
+            a24, a37, a68, s15, s19, s59 = (
+                a2 * a4 % m,
+                a3 * a7 % m,
+                a6 * a8 % m,
+                k if (k := a1 + a5) < m else k - m,
+                k if (k := a1 + a9) < m else k - m,
+                k if (k := a5 + a9) < m else k - m,
+            )
+            a1, a2, a3, a4, a5, a6, a7, a8, a9 = (
+                (a1 * a1 + a24 + a37) % m,
+                (a2 * s15 + a3 * a8) % m,
+                (a3 * s19 + a2 * a6) % m,
+                (a4 * s15 + a6 * a7) % m,
+                (a24 + a5 * a5 + a68) % m,
+                (a3 * a4 + a6 * s59) % m,
+                (a7 * s19 + a4 * a8) % m,
+                (a2 * a7 + a8 * s59) % m,
+                (a37 + a68 + a9 * a9) % m,
+            )
+            if x == "1":
+                a1, a2, a3, a4, a5, a6, a7, a8, a9 = (
+                    (a1 * b1 + a2 * b4 + a3 * b7) % m,
+                    (a1 * b2 + a2 * b5 + a3 * b8) % m,
+                    (a1 * b3 + a2 * b6 + a3 * b9) % m,
+                    (a4 * b1 + a5 * b4 + a6 * b7) % m,
+                    (a4 * b2 + a5 * b5 + a6 * b8) % m,
+                    (a4 * b3 + a5 * b6 + a6 * b9) % m,
+                    (a7 * b1 + a8 * b4 + a9 * b7) % m,
+                    (a7 * b2 + a8 * b5 + a9 * b8) % m,
+                    (a7 * b3 + a8 * b6 + a9 * b9) % m,
+                )
+        return (a7 + a8 + a9) % m
+
+    return filterfalse(lambda k: A000213_mod(k, k), count(max(startvalue, 1)))
+
+
+def A016089_gen(startvalue=1):  # generator of terms >= startvalue
+    return filterfalse(lambda k: lucas_mod(k, k), count(max(startvalue, 1)))
+
+
+def A398421(n):
+    def f(x):
+        return (
+            n
+            + x
+            - sum(
+                primepi(x // (m := p * p)) - (x >= m << 1)
+                for p in primerange(3, isqrt(x) + 1)
+            )
+            + primepi(integer_nthroot(x, 3)[0])
+            - (x >= 8)
+        )
+
+    return bisection(f, n, n)
+
+
+def A372900_gen(startvalue=1):  # generator of terms >= startvalue
+    return filterfalse(lambda k: narayana_mod(k, k), count(max(startvalue, 1)))
+
+
+def A398183(n):
+    c = False
+    p = 2
+    while p <= n:
+        if isprime(2 * n - p):
+            if c:
+                return p
+            c = True
+        p = nextprime(p)
+    return 0
+
+
+def A398451_gen():  # generator of terms
+    m = -1
+    for n in count(3):
+        if (k := A398183(n)) > m:
+            yield k
+            m = k
+
+
+def A398452_gen():  # generator of terms
+    m = -1
+    for n in count(3):
+        if (k := A398183(n)) > m:
+            yield n
+            m = k
+
+
+def A396919(n):
+    def f(x):
+        return n + x + 2 - primepi(isqrt(y := x >> 1)) - primepi(y >> 1)
+
+    return bisection(f, n, n)
+
+
+def A096156(n):
+    def f(x):
+        return (
+            n
+            + x
+            - sum(
+                primepi(x // p**2) - i
+                for i, p in enumerate(primerange(integer_nthroot(x, 3)[0] + 1), 1)
+            )
+        )
+
+    return bisection(f, n, n)
+
+
+def A345381(n):
+    def f(x):
+        return (
+            n
+            + x
+            - sum(
+                sum(
+                    primepi(x // p**k) for p in primerange(integer_nthroot(x, k)[0] + 1)
+                )
+                - primepi(integer_nthroot(x, k + 1)[0])
+                for k in range(2, (x // 3).bit_length())
+            )
+        )
+
+    return bisection(f, n, n)
+
+
+def A372946_gen(startvalue=1):  # generator of terms >= startvalue
+    def A002315_mod(n, m):  # n-th NSW number mod m
+        a, b, c, d, a2, b2, c2, d2 = 6, -1, 1, 0, 1, 0, 0, 1
+        for x in bin(n)[2:]:
+            e, f = b2 * c2 % m, k if (k := a2 + d2) < m else k - m
+            a2, b2, c2, d2 = (
+                (a2 * a2 + e) % m,
+                b2 * f % m,
+                c2 * f % m,
+                (d2 * d2 + e) % m,
+            )
+            if x == "1":
+                a2, b2, c2, d2 = (
+                    (a2 * a + b2 * c) % m,
+                    (a2 * b + b2 * d) % m,
+                    (c2 * a + d2 * c) % m,
+                    (c2 * b + d2 * d) % m,
+                )
+        return (7 * c2 + d2) % m
+
+    return filterfalse(lambda k: A002315_mod(k, k), count(max(startvalue, 1)))
+
+
+def A031876(n):
+    return (m := integer_nthroot(n, 3)[0]) * (
+        m * (m * (-(m + 2)) - 1) + 4 * (n + 1)
+    ) >> 2
+
+
+def A289554(n):
+    def f(x):
+        return int(
+            n
+            + 1
+            + primepi(integer_nthroot(x, 4)[0])
+            + almostprimepi(x, 3)
+            + almostprimepi(x, 2)
+            + primepi(x)
+        )
+
+    return iterfun(f, n)
+
+
+def A398225(n):
+    def f(x):
+        c = (
+            n
+            - 1
+            + sum(
+                mobius(k) * (x // k**5) for k in range(1, integer_nthroot(x, 5)[0] + 1)
+            )
+        )
+        for a9 in range(1, integer_nthroot(x, 9)[0] + 1):
+            if is_squarefree(a9):
+                for b8 in range(1, integer_nthroot(a8 := x // a9**9, 8)[0] + 1):
+                    if gcd(a9, b8) == 1 and is_squarefree(b8):
+                        for b7 in range(
+                            1, integer_nthroot(a7 := a8 // b8**8, 7)[0] + 1
+                        ):
+                            if (
+                                gcd(b8, b7) == 1
+                                and gcd(a9, b7) == 1
+                                and is_squarefree(b7)
+                            ):
+                                for b6 in range(
+                                    1, integer_nthroot(a6 := a7 // b7**7, 6)[0] + 1
+                                ):
+                                    if (
+                                        gcd(b7, b6) == 1
+                                        and gcd(b8, b6) == 1
+                                        and gcd(a9, b6) == 1
+                                        and is_squarefree(b6)
+                                    ):
+                                        c += integer_nthroot(a6 // b6**6, 5)[0]
+        return c
+
+    return bisection(f, n, n)
+
+
+def A330276_gen():  # generator of terms
+    def A002315_mod(n, m):  # n-th NSW number mod m
+        a, b, c, d, a2, b2, c2, d2 = 6, -1, 1, 0, 1, 0, 0, 1
+        for x in bin(n)[2:]:
+            e, f = b2 * c2 % m, k if (k := a2 + d2) < m else k - m
+            a2, b2, c2, d2 = (
+                (a2 * a2 + e) % m,
+                b2 * f % m,
+                c2 * f % m,
+                (d2 * d2 + e) % m,
+            )
+            if x == "1":
+                a2, b2, c2, d2 = (
+                    (a2 * a + b2 * c) % m,
+                    (a2 * b + b2 * d) % m,
+                    (c2 * a + d2 * c) % m,
+                    (c2 * b + d2 * d) % m,
+                )
+        return (7 * c2 + d2) % m
+
+    a, b = 3, 5
+    while True:
+        for k in range(a + 2, b, 2):
+            if A002315_mod(k - 1 >> 1, k) == 1:
+                yield k
+        a, b = b, nextprime(b)
